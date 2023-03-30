@@ -115,11 +115,25 @@ Set up the general "question" for the report to answer.\\
 %\section*{Main body}
 \addcontentsline{toc}{section}{Specifications} \addtocounter{section}{1}
 \section*{Specifications}
-\subsection*{Boolean Algebra}\addcontentsline{toc}{subsection}{Boolean Algebra}
+\subsection*{Turtlebot-3}\addcontentsline{toc}{subsection}{Turtlebot-3}
 What are the Specifications of the project, what was the purpose here?\\
 What do we have to work with?\\
 Details about our robot, and it's sensors system etc.\\
 
+In this project we are using the Turtlebot3 Burger robot, to practice our ROS based robot programming.\\
+The Turtlebot3 burger uses the Raspberry Pi 3 Model B in combination with an OpenCR 1.0 board to 
+provide us with options for programming and controlling it. \\
+The Raspberry Pi is running Ubuntu 18.04 and is used to run our ROS-modules so that we can 
+implement control and sensor usage for the Burger.\\
+\\
+\subsubsection*{LDS-01 Lidar}\addcontentsline{toc}{subsubsection}{LDS-01}
+Additionally the Burger has a Lidar scanner mounted on top, which we use for the navigation of the Burger.\\
+
+\subsubsection*{Raspberry Pi}\addcontentsline{toc}{subsubsection}{Raspberry Pi}
+Raspberry Pi 3 Model B\\
+
+\subsubsection*{RGB-sensor}\addcontentsline{toc}{subsubsection}{RGB-sensor}
+ISL-29125 Model RGB sensor.\\
 
 \subsection*{Karnaugh Maps}\addcontentsline{toc}{subsection}{Karnaugh Maps}
 Karnaugh maps or K-maps, is a way to simplify boolean expressions which are too tedious for Boolean algebra. The reduction could be
@@ -131,9 +145,12 @@ done with Boolean algebra. However, with the Karnaugh map it is faster and easie
 \section*{Process}
 \noindent In the following three subtasks we are to simplify the given expressions using boolean algebra.
 \subsubsection*{a.} \addcontentsline{toc}{subsection}{a.}
-\[Y1= A\bar{B} + A(\overline{B+C}) + B(\overline{B+C})\]
-Applying DeMorgan Theorem we get:
-
+In week 7 we had problems with being unable to have the robot autonomously drive.\\
+At first the script would run into errors trying to setup and publish subscribers etc. to the ROS environment,
+the fix for this was to update the OpenCR boards firmware with (i forgor, maybe some push or whatever).\\
+The second problem after having the script output 1 reading, where we expected more, was that the program would
+halt as the linear speed variable for the robot in this script, was set too high, at 0.22, lowering this to 0.15
+fixed the issues, and the robot could now run.
 
 
 \pagebreak
