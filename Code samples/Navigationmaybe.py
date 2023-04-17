@@ -73,8 +73,13 @@ class Obstacle():
 
         while not rospy.is_shutdown(): # loop until user presses Ctrl+C
             lidar_distances = self.get_scan() # get the filtered lidar data
+        
+            for i in range(0, len(lidar_distances)):
+                if lidar_distances[i] == 0 or lidar_distances[i] == 0.0:
+                    lidar_distances[i] = 100
+            
             min_distance = min(lidar_distances) # get the minimum distance of the filtered lidar data
-
+            rospy.loginfo('Lidar min dist: %d', min_distance)
             if min_distance < SAFE_STOP_DISTANCE: 
                 if turtlebot_moving:
                     twist.linear.x = 0.0
@@ -106,7 +111,7 @@ class Obstacle():
                 twist.angular.z = 0.0
                 self._cmd_pub.publish(twist)
                 turtlebot_moving = True
-                rospy.loginfo('Distance of the obstacle :', min_distance)
+                rospy.loginfo('Distance of the obstacle %f:', min_distance)
 
 def main():
     rospy.init_node('turtlebot3_obstacle')
