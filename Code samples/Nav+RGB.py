@@ -29,6 +29,7 @@
 import rospy
 import math
 import time
+import smbus2
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
 
@@ -41,7 +42,7 @@ accumulated_speed = 0
 speed_updates = 0
 
 #RGB sensor section (week 3)
-import smbus2
+
 
 class RGBsensor(): #RGB sensor class
     def __init__(self): #RGB sensor initialization
@@ -58,7 +59,7 @@ class RGBsensor(): #RGB sensor class
         Green = data[1] 
         Blue = data[3]
         Red = data[5]
-        return (Red, Green, Blue)  
+        return (Red, Green, Blue)
     
 
 class Obstacle():
