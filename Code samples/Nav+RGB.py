@@ -95,7 +95,7 @@ class Obstacle():
         return scan_filter
     
     def check_collision(self):
-        full_distance = self.get_scan(360) # get the filtered lidar data 
+        full_distance = self.get_scan() # get the filtered lidar data 
         if (min(full_distance) < SAFE_STOP_DISTANCE): # check if the minimum distance is less than the safe stop distance
             return True
         else:
