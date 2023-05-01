@@ -54,11 +54,11 @@ class RGBsensor(): #RGB sensor class
     def get_color(self):
         # Read data from I2C interface (the registers)
         data = self.bus.read_i2c_block_data(0x44, 0x09, 6)
-
+        rospy.loginfo("{}".format(data))
         Green = data[1] 
         Blue = data[3]
         Red = data[5]
-        return (data[1], data[3], data[5])  
+        return (Red, Green, Blue)  
     
 
 class Obstacle():
@@ -112,30 +112,27 @@ class Obstacle():
         time_to_run = 60 * 2 # 2 minutes
         time_left = time.time() + time_to_run
 
-        # Lightsensor and collision detection loop 
-        while(not rospy.is_shutdown()) and (time.time() < time_left):
-            lightdata = sensor.get_color()
 
-            if(self.check_collision() and collision_cd < 1):
-                collision_count += 1
-                collision_cd = 5
-                rospy.loginfo("Collision detected, total collisions: {}".format(collision_count))
-            collision_cd -= 1
-            
             # RGB detection of victims of color red
-            if RGB_cd <= 0:
-                if lightdata[0] > 80:
-                    victims += 1
-                    RGB_cd = 5
-                    rospy.loginfo("Victim found, total victims: {} ".format(victims))
-            else:
-                RGB_cd -= 1
+            #if RGB_cd <= 0:
+            #    if lightdata[0] > 80:
+            #        victims += 1
+            #        RGB_cd = 5
+            #        rospy.loginfo("Victim found, total victims: {} ".format(victims))
+            #else:
+            #    RGB_cd -= 1
 
-        while not rospy.is_shutdown(): # loop until user presses Ctrl+C
+        while (not rospy.is_shutdown() and (time.time() < time_left)): # loop until user presses Ctrl+C
             lidar_distances = self.get_scan() # get the filtered lidar data
             min_distance = min(lidar_distances) # get the minimum distance of the filtered lidar data
-
+            lightdata = sensor.get_color() # get RGB sensor data
             if min_distance < SAFE_STOP_DISTANCE: # check if the minimum distance is less than the safe stop distance
+                if collision_cd < 1:
+                    collision_count += 1
+                    collision_cd = 5
+                    rospy.loginfo("Collision detected, total collisions: {}".format(collision_count))
+                collision_cd -= 1 # Cooldown for loop cycles on colissions
+                
                 if turtlebot_moving: 
                     twist.linear.x = 0.0 
                     twist.angular.z = 0.0
