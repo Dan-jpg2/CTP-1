@@ -119,7 +119,7 @@ class Obstacle():
             if(self.check_collision() and collision_cd < 1):
                 collision_count += 1
                 collision_cd = 5
-                rospy.loginfo("Collision detected, total collisions: ", collision_count)
+                rospy.loginfo("Collision detected, total collisions: {}".format(collision_count))
             collision_cd -= 1
             
             # RGB detection of victims of color red
@@ -127,7 +127,7 @@ class Obstacle():
                 if lightdata[0] > 80:
                     victims += 1
                     RGB_cd = 5
-                    rospy.loginfo("Victim found, total victims: ", victims)
+                    rospy.loginfo("Victim found, total victims: {} ".format(victims))
             else:
                 RGB_cd -= 1
 
@@ -150,13 +150,13 @@ class Obstacle():
                         angle = math.atan((SAFE_STOP_DISTANCE - left_min_distance) / LIDAR_ERROR) # calculate the turn angle
                         self._remaining_angle = angle / 2 # set the remaining angle to turn
                         twist.angular.z = self._turn_speed # set the angular velocity
-                        rospy.loginfo(f'Turn right {angle} degrees!') # log the turn angle
+                        rospy.loginfo('Turn right {} degrees!'.format(angle)) # log the turn angle
 
                     elif right_min_distance < left_min_distance: # check which side has the minimum distance
                         angle = math.atan((SAFE_STOP_DISTANCE - right_min_distance) / LIDAR_ERROR) # calculate the turn angle
                         self._remaining_angle = angle / 2 # set the remaining angle to turn
                         twist.angular.z = -self._turn_speed # set the angular velocity
-                        rospy.loginfo(f'Turn left {angle} degrees!') # log the turn angle
+                        rospy.loginfo('Turn left {} degrees!'.format(angle)) # log the turn angle
                     else:
                         twist.linear.x = -LINEAR_VEL # set the linear velocity
                         rospy.loginfo('Go backward!') # log the linear velocity
@@ -189,7 +189,7 @@ class Obstacle():
 
 
 
-        rospy.loginfo(f'Average linear speed: {average_speed}')
+        rospy.loginfo('Average linear speed: {}'.format(average_speed))
         
 
 def main():
