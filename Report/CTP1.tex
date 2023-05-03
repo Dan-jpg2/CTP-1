@@ -5,6 +5,10 @@
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{algorithmic}
 \usepackage{graphicx}
+\usepackage{hyperref}
+\hypersetup{
+    hidelinks
+}
 \usepackage{textcomp}
 \usepackage{xcolor}
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
@@ -28,9 +32,8 @@ AU722120}
 \maketitle
 
 \begin{abstract}
-This document is a model and instructions for \LaTeX.
-This and the IEEEtran.cls file define the components of your paper [title, text, heads, etc.]. *CRITICAL: Do Not Use Symbols, Special Characters, Footnotes, 
-or Math in Paper Title or Abstract.
+Define what have we done and talked about in the report.\\
+Set up the general "question" for the report to answer.\\
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -38,20 +41,45 @@ component, formatting, style, styling, insert
 \end{IEEEkeywords}
 
 \section{Introduction}
-This document is a model and instructions for \LaTeX.
-Please observe the conference page limits. 
+In this paper, we will discuss the process of implementing a robot for search and rescue purposes.\\
+We aim to understand the principles of a search and rescue robot, and how to develop such a robot from relevant components for 
+navigating and determining targets.\\
+Our development for this robot will be through the use of the Robot Operating System (ROS), which is a well-documented and diverse
+environment for robot development.
+\section{Specifications}
+\textit{What are the Specifications of the project, what was the purpose here?\\
+What do we have to work with?\\
+Details about our robot, and it's sensors system etc.\\}
 
-\section{Ease of Use}
+\subsection{TurtleBot3 Burger}
+In this project we are using the TurtleBot3 Burger robot, to practice our ROS based robot programming.\\
+The TurtleBot3 Burger is equipped with a Raspberry Pi 3 Model B \cite{b1} in combination with an OpenCR 1.0 board, to 
+provide us with options for programming and controlling it. \\
+Our Raspberry Pi is running Ubuntu 18.04 and is used to run our ROS-modules, so that we can 
+implement control and sensor usage for the Burger.\\
+The TurtleBot3 is a well-developed and popular mobile robot platform designed for education, research, and hobbyist purposes.
+It is an open-source robot that is capable of operating autonomously or being remotely controlled.
+It is equipped with a range of sensors, including a 360-degree LIDAR (Light Detection and Ranging) sensor, 
+a camera, an IMU (Inertial Measurement Unit), and wheel encoders, that allow it to navigate its environment and avoid obstacles.
+\\
 
-\subsection{Maintaining the Integrity of the Specifications}
+\subsection{LDS-01 LIDAR}
+Additionally the Burger has a Lidar scanner mounted on top, which we use for the navigation of the Burger.\\
+\\
+The LDS-01 LIDAR is a laser-based sensor that can be used to create a map of the robot's environment
+and detect obstacles. It uses a rotating laser to scan the surrounding area and can detect objects in the range from 0.12 to 3.5 meters \cite{b2}. The data from the LIDAR sensor can be used to create a 2D or 3D map of the environment,
+which can be used for navigation and obstacle avoidance.\\
 
-The IEEEtran class file is used to format your paper and style the text. All margins, 
-column widths, line spaces, and text fonts are prescribed; please do not 
-alter them. You may note peculiarities. For example, the head margin
-measures proportionately more than is customary. This measurement 
-and others are deliberate, using specifications that anticipate your paper 
-as one part of the entire proceedings, and not as an independent document. 
-Please do not revise any of the current designations.
+\subsection{Raspberry Pi 3 Model B}
+The Raspberry Pi 3 Model B is a small, low-cost computer that can be used for a wide range of applications. This specific model
+features a 1.2 GHz quad-core processor, 1 GB of RAM, and built-in Wi-Fi and Bluetooth connectivity\cite{b3}.
+It is widely used in robotics due to its low cost, small size and versatility. In this instance, we use the Pi to run the control 
+software for the TurtleBot3 and processes the data from its sensors.
+
+
+\subsection{RGB Sensor}
+ISL-29125 Model RGB sensor.
+
 
 \section{Prepare Your Paper Before Styling}
 Before you begin to format your paper, first write and save the content as a 
@@ -244,13 +272,13 @@ For papers published in translation journals, please give the English
 citation first, followed by the original foreign-language citation \cite{b6}.
 
 \begin{thebibliography}{00}
-\bibitem{b1} G. Eason, B. Noble, and I. N. Sneddon, ``On certain integrals of Lipschitz-Hankel type involving products of Bessel functions,'' Phil. Trans. Roy. Soc. London, vol. A247, pp. 529--551, April 1955.
-\bibitem{b2} J. Clerk Maxwell, A Treatise on Electricity and Magnetism, 3rd ed., vol. 2. Oxford: Clarendon, 1892, pp.68--73.
-\bibitem{b3} I. S. Jacobs and C. P. Bean, ``Fine particles, thin films and exchange anisotropy,'' in Magnetism, vol. III, G. T. Rado and H. Suhl, Eds. New York: Academic, 1963, pp. 271--350.
-\bibitem{b4} K. Elissa, ``Title of paper if known,'' unpublished.
-\bibitem{b5} R. Nicole, ``Title of paper with only first word capitalized,'' J. Name Stand. Abbrev., in press.
-\bibitem{b6} Y. Yorozu, M. Hirano, K. Oka, and Y. Tagawa, ``Electron spectroscopy studies on magneto-optical media and plastic substrate interface,'' IEEE Transl. J. Magn. Japan, vol. 2, pp. 740--741, August 1987 [Digests 9th Annual Conf. Magnetics Japan, p. 301, 1982].
-\bibitem{b7} M. Young, The Technical Writer's Handbook. Mill Valley, CA: University Science, 1989.
+\bibitem{b1} \raggedright Robotis e-Manual - TurtleBot3 Specifications, visited 03-05-2023, \url{https://emanual.robotis.com/docs/en/platform/turtlebot3/features/#specifications}.
+\bibitem{b2} \raggedright Robotis e-Manual - LDS-01 Specifications, visisted 03-05-2023, \url{https://emanual.robotis.com/docs/en/platform/turtlebot3/appendix_lds_01/}
+\bibitem{b3} \raggedright Raspberry Pi 3 Model B Documentation, visisted 03-05-2023, \url{https://www.raspberrypi.com/products/raspberry-pi-3-model-b/}
+\bibitem{b4} \raggedright K. Elissa, ``Title of paper if known,'' unpublished.
+\bibitem{b5} \raggedright R. Nicole, ``Title of paper with only first word capitalized,'' J. Name Stand. Abbrev., in press.
+\bibitem{b6} \raggedright Y. Yorozu, M. Hirano, K. Oka, and Y. Tagawa, ``Electron spectroscopy studies on magneto-optical media and plastic substrate interface,'' IEEE Transl. J. Magn. Japan, vol. 2, pp. 740--741, August 1987 [Digests 9th Annual Conf. Magnetics Japan, p. 301, 1982].
+\bibitem{b7} \raggedright M. Young, The Technical Writer's Handbook. Mill Valley, CA: University Science, 1989.
 \end{thebibliography}
 \vspace{12pt}
 \color{red}
