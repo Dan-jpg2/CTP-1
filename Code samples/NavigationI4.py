@@ -115,7 +115,7 @@ class Obstacle():
                 if collision_cd < 1:
                     collision_count += 1
                     collision_cd = 5
-                    rospy.loginfo("Collision detected, total collisions: {}".format(collision_count))
+                    rospy.loginfo('Collision detected, total collisions: %d', collision_count)
                     collision_cd -= 1 # Cooldown for loop cycles on colissions
 
                 partition = int(len(frontCone)/2) # Use to look more detailed in the cones
@@ -126,19 +126,19 @@ class Obstacle():
 
                 
                 if rightEval1 < SAFE_STOP_DISTANCE:
-                    twist.angular.z = -0.9 * 1/rightEval1
+                    twist.angular.z = -0.9 * 1/(2*rightEval1)
                     #twist.linear.x = 0.08
                     rospy.loginfo('Left!')
                 elif rightEval2 < SAFE_STOP_DISTANCE:
-                    twist.angular.z = -0.45 * 1/(2*rightEval2)
+                    twist.angular.z = -0.45 * 1/(3*rightEval2)
                     #twist.linear.x = 0.1
                     rospy.loginfo('Slight left!')
                 elif leftEval1 < SAFE_STOP_DISTANCE:
-                    twist.angular.z = 0.9 * 1/leftEval1
+                    twist.angular.z = 0.9 * 1/(2*leftEval1)
                     #twist.linear.x = 0.08
                     rospy.loginfo('Right!')
                 elif leftEval2 < SAFE_STOP_DISTANCE:
-                    twist.angular.z = 0.45 * 1/(2*leftEval2)
+                    twist.angular.z = 0.45 * 1/(3*leftEval2)
                     #twist.linear.x = 0.1
                     rospy.loginfo('Slight right!')
                 else:
