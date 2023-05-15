@@ -33,10 +33,9 @@ import smbus2
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
 
-LINEAR_VEL = 0.25
-STOP_DISTANCE = 0.3
-LIDAR_ERROR = 0.05
-SAFE_STOP_DISTANCE = STOP_DISTANCE + LIDAR_ERROR
+LINEAR_VEL = 0.22
+LIDAR_ERROR = 0.22 # prev 0.05
+SAFE_STOP_DISTANCE = 0.17 + LIDAR_ERROR
 FRONT_STOP_DIST = 0.25 + LIDAR_ERROR
 
 
@@ -77,9 +76,9 @@ class Obstacle():
         for i in range(len(scan_filter)): # iterate through the filtered lidar data
             curRead = scan_filter[i]
             if curRead == float('Inf') or curRead < 0.01 or math.isnan(curRead): # check if the lidar data is gibberish
-                scan_filter[i] = 3.5 # set the lidar data to a large number (invalid)
+                scan_filter[i] = 1.0 # set the lidar data to a large number (invalid)
         return scan_filter
-
+    
 
     def obstacle(self):
         twist = Twist() # create a Twist message to send velocity commands
@@ -91,7 +90,7 @@ class Obstacle():
         sensor = RGBsensor() # initialize RGB sensor
         timeToRun = 60 * 2 # 2 minutes run time
         endTime = time.time() + timeToRun
-
+        
         while (not rospy.is_shutdown() and (time.time() < endTime)): # loop until user presses Ctrl+C
             scan_read = self.get_scan() # get the filtered lidar data
             samples = len(scan_read)
@@ -109,13 +108,15 @@ class Obstacle():
             rospy.loginfo('Lidar min dist: %f', min_distance)
             #rospy.loginfo('Array length %d', samples)
 
-            if min(frontCone) < FRONT_STOP_DIST:
-                if collision_cd < 1:
+            if min(frontCone) < 0.04 or min(rightCone) < 0.05 or min(leftCone) < 0.05:
+                 if collision_cd < 1:
                     collision_count += 1
                     collision_cd = 5
-                    rospy.loginfo('Collision detected, total collisions: %d', collision_count)
-                    collision_cd -= 1 # Cooldown for loop cycles on colissions
+                    rospy.loginfo('Collision detected, total collisions: %d', collision_count)   
+            collision_cd -= 1 # Cooldown for loop cycles on colissions
 
+            if min(frontCone) < FRONT_STOP_DIST:
+               
                 part = int(len(rightCone)/2) # Use to look more detailed in the side cones
                 frontPart = int(len(frontCone)/2) # Split front cone in left and right
                 frontRight = min(frontCone[:frontPart])
@@ -125,37 +126,44 @@ class Obstacle():
                 leftEval1 = min(leftCone[part:])
                 leftEval2 = min(leftCone[:part])
 
-                if rightEval1 < SAFE_STOP_DISTANCE/1.5 and leftEval1 < SAFE_STOP_DISTANCE/1.5:
-                    twist.linear.x = -LINEAR_VEL/1.5
-                
-                if frontRight < FRONT_STOP_DIST:
-                    twist.angular.z = -0.4 * 1/(3*frontRight)
+                rightEval = min(lidar_distances[:120])
+                leftEval = min(lidar_distances[120:])
 
-                elif frontLeft < FRONT_STOP_DIST:
-                    twist.angular.z = 0.4 * 1/(3*frontLeft)
-                
-                if rightEval1 < SAFE_STOP_DISTANCE:
-                    twist.angular.z = -0.9 * 2/(3*rightEval1)
-                    #twist.linear.x = 0.08
-                    rospy.loginfo('Left!')
-                elif rightEval2 < SAFE_STOP_DISTANCE:
-                    twist.angular.z = -0.45 * 1/(3*rightEval2)
-                    #twist.linear.x = 0.1
-                    rospy.loginfo('Slight left!')
-                elif leftEval1 < SAFE_STOP_DISTANCE:
-                    twist.angular.z = 0.9 * 2/(3*leftEval1)
-                    #twist.linear.x = 0.08
-                    rospy.loginfo('Right!')
-                elif leftEval2 < SAFE_STOP_DISTANCE:
-                    twist.angular.z = 0.45 * 1/(3*leftEval2)
-                    #twist.linear.x = 0.1
-                    rospy.loginfo('Slight right!')
+                if (rightEval < SAFE_STOP_DISTANCE/3 and leftEval < SAFE_STOP_DISTANCE/3): 
+                    # If we think we're cornered, do a 180
+                    twist.linear.x = 0.0
+                    twist.angular.z = 1.0
+                    #rospy.loginfo('Cornered, do a 180!')
+
+                elif(leftEval <= rightEval): # Decide if it's more important to turn left or right in general
+                    #Turn right 
+                    twist.angular.z = -0.3 * 1/leftEval
+                    if(frontLeft < FRONT_STOP_DIST/1.25):
+                        twist.angular.z = -0.5 * 1/frontLeft
+                        #rospy.loginfo('Very Right!')
+                    elif(leftEval1 < SAFE_STOP_DISTANCE):
+                        twist.angular.z = -0.5 * 1.5/leftEval1
+                        #rospy.loginfo('Right!')
+                    elif(leftEval2 < SAFE_STOP_DISTANCE):
+                        twist.angular.z = -0.6 * 2/leftEval2
+                        #rospy.loginfo('Slight Right')
                 else:
-                    twist.angular.z = 1.0   
+                    #Turn left
+                    twist.angular.z = 0.3 * 1/rightEval
+                    if(frontRight < FRONT_STOP_DIST/1.25):
+                        twist.angular.z = 0.5 * 1/frontRight
+                        #rospy.loginfo('Very Left!')
+                    elif(rightEval1 < SAFE_STOP_DISTANCE):
+                        twist.angular.z = 0.5 * 1.5/rightEval1
+                        #rospy.loginfo('Left!')
+                    elif(rightEval2 < SAFE_STOP_DISTANCE):
+                        twist.angular.z = 0.6 * 2/rightEval2
+                        #rospy.loginfo('Slight Left!')
 
             else:
                 twist.linear.x = LINEAR_VEL
                 twist.angular.z = 0.0
+                rospy.loginfo('Continue straight')
             self._cmd_pub.publish(twist)
             #rospy.loginfo('Distance to the obstacle %f:', min_distance)
             #Average linear speed here _________________________________________________________________
@@ -163,6 +171,7 @@ class Obstacle():
             self.speed_updates += 1
             self.average_speed = self.accumulated_speed / self.speed_updates
             #self._cmd_pub.publish(twist)
+            time.sleep(0.25) # Sleep to delay evaluation for new data, get_scan doesn't work too fast
         rospy.loginfo('Average speed: %f', self.average_speed)
 
 def main():
