@@ -122,12 +122,12 @@ class Obstacle():
     
     def col_check(self):
         full_dist = self.get_scan(360)
-        if(min(full_dist) < COL_DISTANCE and Obstacle.collision_cooldown < 1):
+        if(min(full_dist) < COL_DISTANCE and Obstacle.collision_cd < 1):
             Obstacle.collision_count += 1
-            Obstacle.collision_cooldown = 5
+            Obstacle.collision_cd = 5
             rospy.loginfo('COLLISION, total collisions: %i', Obstacle.collision_count)
         else:
-            Obstacle.collision_cooldown -= 1
+            Obstacle.collision_cd -= 1
 
     
     def obstacle(self):
