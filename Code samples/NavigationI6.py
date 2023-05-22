@@ -33,8 +33,8 @@ import smbus2
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
 
-LINEAR_VEL = 0.22
-LIDAR_ERROR = 0.15 # prev 0.05
+LINEAR_VEL = -0.22 # Corrected for reverse motors on this robot
+LIDAR_ERROR = 0.2 # prev 0.05
 SAFE_STOP_DISTANCE = 0.12 + LIDAR_ERROR
 FRONT_STOP_DIST = 0.25 + LIDAR_ERROR
 
@@ -44,18 +44,17 @@ class RGBsensor(): #RGB sensor class
     def __init__(self): #RGB sensor initialization
         self.bus = smbus2.SMBus(1) #I2C bus 1 is used for the ISL29125 RGB sensor 
         time.sleep(0.5) #Wait for the initialization to finish 
-        self.bus.write_byte_data(0x44, 0x01 , 0x12) # Configure the RGB Sensor's register to read RGB values
+        self.bus.write_byte_data(0x44, 0x01 , 0x15) # Configure the RGB Sensor's register to read RGB values
     
     #Reads the RGB sensor data and returns the values as a tuple (Red, Green, Blue)
-    def get_red(self):
+    def get_rgb(self):
         # Read data from I2C interface
-        # We get 12 meaningful bits in cur config, and we convert to values between 0 and 255 instead:
+        # We get 12 meaningful bits in cur config
         # 12 bit res means max val of 4095
-        #Green = self.bus.read_word_data(0x44, 0x09) # nnot configured
+        green = self.bus.read_word_data(0x44, 0x09)
         red = self.bus.read_word_data(0x44, 0x0B)
-        red = int(red/4095)
-        #Blue= self.bus.read_word_data(0x44, 0x0D) # Not configured
-        return red
+        blue= self.bus.read_word_data(0x44, 0x0D) 
+        return red, green, blue
 
 class Obstacle():
     def __init__(self):
@@ -92,12 +91,13 @@ class Obstacle():
         sensor = RGBsensor() # initialize RGB sensor
         timeToRun = 60 * 2 # 2 minutes run time
         endTime = time.time() + timeToRun
-        curRed = sensor.get_red()
+        curBlue = (sensor.get_rgb())[2]
+
         def nextTurn(dir):
             twist.angular.z = dir
             twist.linear.x = LINEAR_VEL * 0.6
 
-        while (not rospy.is_shutdown() and (time.time() < endTime)): # loop until user presses Ctrl+C
+        while (not rospy.is_shutdown() and (time.time() < endTime)): # loop for 2 minutes or until user CTRL + C
             scan_read = self.get_scan() # get the filtered lidar data
             samples = len(scan_read)
 
@@ -105,15 +105,16 @@ class Obstacle():
             lidar_distances = scan_read[2*int(samples/3):] 
             lidar_distances.extend(scan_read[:int(samples/3)])
 
-            newRed = sensor.get_red()
-            if newRed > curRed + 10 or newRed < curRed - 10:
-                if newRed > 150:
+            newRed, dummy, newBlue = sensor.get_rgb()
+            rospy.loginfo('Red value %d, Blue value %d', newRed, newBlue)
+            if newBlue < curBlue * 0.8 or newBlue > curBlue * 1.2:
+                curBlue = newBlue # new baseline
+                if newRed > 180 and newBlue < 100: # Check if we are currently over a tag
                     victims += 1
-                    curRed = newRed
-                    rospy.loginfo('Victim found, total count: %d', newRed)
-    
-        
+                    rospy.loginfo('Victim found, total count: %d', victims)
+                
 
+    
             samples = len(lidar_distances) #update samples
             #Partition readings into cones for evaluating navigation from
             frontCone = lidar_distances[90:150] # -30 deg to +30 deg
@@ -185,9 +186,9 @@ class Obstacle():
             self.average_speed = self.accumulated_speed / self.speed_updates
 
 
-            time.sleep(0.25) # Sleep to delay evaluation for new data, get_scan doesn't work too fast
-        rospy.loginfo('Average speed: %f', self.average_speed)
-
+            time.sleep(0.2) # Sleep to delay evaluation for new data, get_scan doesn't work too fast
+        rospy.loginfo('Average speed: %f\nVictims Found: %d\nCollisions detected: %d', self.average_speed, victims, collision_count)
+        
 def main():
     rospy.init_node('turtlebot3_obstacle')
     try:
