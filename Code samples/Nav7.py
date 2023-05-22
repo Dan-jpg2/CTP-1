@@ -147,7 +147,7 @@ class Obstacle():
         accumulated_speed = 0
         speed_updates = 0
 
-        #Start of our loop
+        #Start of our loop - we have to run for 2 minutes
         while (not rospy.is_shutdown()) and (time.time() < endTime):
             #Check colissions 
             self.col_check()
