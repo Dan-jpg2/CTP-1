@@ -1,3 +1,8 @@
+sum = 0
+for i in range(12):
+    sum += 2**i
+print(sum)
+
 a = []
 for i in range(360):
     a.append(i+1)
