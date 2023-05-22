@@ -158,85 +158,84 @@ class Obstacle():
         def movement_decision(cones): # function to determine the movement of the robot
             LINEAR_VEL = 0.6
             ANGULAR_VEL = 1
+            
+            msg = Twist() # create a Twist message to send velocity commands
+            linear_x = 0
+            angular_z = 0
             while (not rospy.is_shutdown()) and (time.time() < endTime):
-                msg = Twist() # create a Twist message to send velocity commands
-                linear_x = 0
-                angular_z = 0
+                description = ""
             
-            description = ""
-            
-            if cones["front"] > SAFE_STOP_DISTANCE and cones["left"] > SAFE_STOP_DISTANCE and cones["right"] > SAFE_STOP_DISTANCE:
-                description = "no obstacles detected"
-                twist.linear.x = LINEAR_VEL 
-                twist.linear.z = 0
-            elif cones["front"] < SAFE_STOP_DISTANCE and cones['left'] < SAFE_STOP_DISTANCE and cones['right'] < SAFE_STOP_DISTANCE:
-                description = "Obstacle in front, left and right"
-                twist.linear.x = -LINEAR_VEL * 0.3
-                twist.linear.z = ANGULAR_VEL #We can adjust this to turn faster or slower???
-            elif cones['front'] < SAFE_STOP_DISTANCE and cones['left'] > SAFE_STOP_DISTANCE and cones['right'] > SAFE_STOP_DISTANCE:
-                description = 'Obstacle in front'
-                if cones["front"] < SAFE_STOP_DISTANCE *0.5:
-                    twist.linear.x = 0 
-                    twist.linear.z = ANGULAR_VEL 
+                if cones["front"] > SAFE_STOP_DISTANCE and cones["left"] > SAFE_STOP_DISTANCE and cones["right"] > SAFE_STOP_DISTANCE:
+                    description = "no obstacles detected"
+                    twist.linear.x = LINEAR_VEL 
+                    twist.linear.z = 0
+                elif cones["front"] < SAFE_STOP_DISTANCE and cones['left'] < SAFE_STOP_DISTANCE and cones['right'] < SAFE_STOP_DISTANCE:
+                    description = "Obstacle in front, left and right"
+                    twist.linear.x = -LINEAR_VEL * 0.3
+                    twist.linear.z = ANGULAR_VEL #We can adjust this to turn faster or slower???
+                elif cones['front'] < SAFE_STOP_DISTANCE and cones['left'] > SAFE_STOP_DISTANCE and cones['right'] > SAFE_STOP_DISTANCE:
+                    description = 'Obstacle in front'
+                    if cones["front"] < SAFE_STOP_DISTANCE *0.5:
+                        twist.linear.x = 0 
+                        twist.linear.z = ANGULAR_VEL 
+                    else:
+                        twist.linear.x = LINEAR_VEL * 0.5
+                        twist.linear.z = ANGULAR_VEL
+                elif cones['front'] > SAFE_STOP_DISTANCE and cones['left'] > SAFE_STOP_DISTANCE and cones['right'] < SAFE_STOP_DISTANCE:
+                    description = 'Obstacle on the right'
+                    if cones["right"] < SAFE_STOP_DISTANCE * 0.5:
+                        twist.linear.x = LINEAR_VEL * 0.3
+                        twist.linear.z = -ANGULAR_VEL
+                    else:
+                        twist.linear.x = LINEAR_VEL
+                        twist.linear.z = -ANGULAR_VEL
+                elif cones['front'] < SAFE_STOP_DISTANCE and cones['left'] < SAFE_STOP_DISTANCE and cones['right'] > SAFE_STOP_DISTANCE:
+                    description = 'Obstacle on the left'
+                    if cones["left"] < SAFE_STOP_DISTANCE * 0.5:    
+                        twist.linear.x = LINEAR_VEL *0.3
+                        twist.linear.z = ANGULAR_VEL
+                    else:
+                        twist.linear.x = LINEAR_VEL
+                        twist.linear.z = ANGULAR_VEL
+                elif cones['front'] < SAFE_STOP_DISTANCE and cones['left'] > SAFE_STOP_DISTANCE and cones['right'] < SAFE_STOP_DISTANCE:
+                    description = 'Obstacle in front, right'
+                    if cones["front"] < SAFE_STOP_DISTANCE * 0.5: 
+                        twist.linear.x = 0
+                        twist.linear.z = ANGULAR_VEL
+                    else:
+                        twist.linear.x = LINEAR_VEL * 0.5
+                        twist.linear.z = -ANGULAR_VEL
+                elif cones['front'] < SAFE_STOP_DISTANCE and cones['left'] < SAFE_STOP_DISTANCE and cones['right'] > SAFE_STOP_DISTANCE:
+                    description = 'Obstacle in front, left'
+                    if cones["front"] < SAFE_STOP_DISTANCE *0.5:
+                        twist.linear.x = 0
+                        twist.linear.z = -ANGULAR_VEL
+                    else: 
+                        twist.linear.x = LINEAR_VEL * 0.5
+                        twist.linear.z = ANGULAR_VEL
+                elif cones['front'] > SAFE_STOP_DISTANCE and cones['left'] < SAFE_STOP_DISTANCE and cones['right'] < SAFE_STOP_DISTANCE:
+                    description = 'Obstacle on the left and right'
+                    twist.linear.x = LINEAR_VEL 
+                    twist.linear.z = 0
                 else:
-                    twist.linear.x = LINEAR_VEL * 0.5
-                    twist.linear.z = ANGULAR_VEL
-            elif cones['front'] > SAFE_STOP_DISTANCE and cones['left'] > SAFE_STOP_DISTANCE and cones['right'] < SAFE_STOP_DISTANCE:
-                description = 'Obstacle on the right'
-                if cones["right"] < SAFE_STOP_DISTANCE * 0.5:
-                    twist.linear.x = LINEAR_VEL * 0.3
-                    twist.linear.z = -ANGULAR_VEL
-                else:
+                    description = 'Unknown case'
                     twist.linear.x = LINEAR_VEL
-                    twist.linear.z = -ANGULAR_VEL
-            elif cones['front'] < SAFE_STOP_DISTANCE and cones['left'] < SAFE_STOP_DISTANCE and cones['right'] > SAFE_STOP_DISTANCE:
-                description = 'Obstacle on the left'
-                if cones["left"] < SAFE_STOP_DISTANCE * 0.5:    
-                    twist.linear.x = LINEAR_VEL *0.3
-                    twist.linear.z = ANGULAR_VEL
-                else:
-                    twist.linear.x = LINEAR_VEL
-                    twist.linear.z = ANGULAR_VEL
-            elif cones['front'] < SAFE_STOP_DISTANCE and cones['left'] > SAFE_STOP_DISTANCE and cones['right'] < SAFE_STOP_DISTANCE:
-                description = 'Obstacle in front, right'
-                if cones["front"] < SAFE_STOP_DISTANCE * 0.5: 
-                    twist.linear.x = 0
-                    twist.linear.z = ANGULAR_VEL
-                else:
-                    twist.linear.x = LINEAR_VEL * 0.5
-                    twist.linear.z = -ANGULAR_VEL
-            elif cones['front'] < SAFE_STOP_DISTANCE and cones['left'] < SAFE_STOP_DISTANCE and cones['right'] > SAFE_STOP_DISTANCE:
-                description = 'Obstacle in front, left'
-                if cones["front"] < SAFE_STOP_DISTANCE *0.5:
-                    twist.linear.x = 0
-                    twist.linear.z = -ANGULAR_VEL
-                else: 
-                    twist.linear.x = LINEAR_VEL * 0.5
-                    twist.linear.z = ANGULAR_VEL
-            elif cones['front'] > SAFE_STOP_DISTANCE and cones['left'] < SAFE_STOP_DISTANCE and cones['right'] < SAFE_STOP_DISTANCE:
-                description = 'Obstacle on the left and right'
-                twist.linear.x = LINEAR_VEL 
-                twist.linear.z = 0
-            else:
-                description = 'Unknown case'
-                twist.linear.x = LINEAR_VEL
-                twist.linear.z = 0
-                rospy.loginfo(cones)
+                    twist.linear.z = 0
+                    rospy.loginfo(cones)
                 
 
-            self._cmd_pub.publish(twist)
-            self._cmd_pub.publish(description)
-            time.sleep(0.27) # Sleep to delay evaluation for new data, get_scan doesn't work too fast
-            #rospy.loginfo('Distance to the obstacle %f:', min_distance)
-            #Average linear speed here _________________________________________________________________
-            self.accumulated_speed += abs(twist.linear.x)
-            self.speed_updates += 1
-            self.average_speed = self.accumulated_speed / self.speed_updates
-            #self._cmd_pub.publish(twist)
-            time.sleep(0.27) # Sleep to delay evaluation for new data, get_scan doesn't work too fast
-        rospy.loginfo('Average speed: %f', self.average_speed)
-        rospy.loginfo('Number of victims: %f', victims)
-        rospy.loginfo('Number of collisions: %f', collision_count)
+                self._cmd_pub.publish(twist)
+                self._cmd_pub.publish(description)
+                time.sleep(0.27) # Sleep to delay evaluation for new data, get_scan doesn't work too fast
+                #rospy.loginfo('Distance to the obstacle %f:', min_distance)
+                #Average linear speed here _________________________________________________________________
+                self.accumulated_speed += abs(twist.linear.x)
+                self.speed_updates += 1
+                self.average_speed = self.accumulated_speed / self.speed_updates
+                #self._cmd_pub.publish(twist)
+            rospy.loginfo('Average speed: %f', self.average_speed)
+            rospy.loginfo('Number of victims: %f', victims)
+            rospy.loginfo('Number of collisions: %f', collision_count)
 
 def main():
     rospy.init_node('turtlebot3_obstacle')
