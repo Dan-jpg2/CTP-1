@@ -144,6 +144,7 @@ class Obstacle():
         def turn(dir):
             twist.angular.z = dir 
             twist.linear.x = LINEAR_VEL * 0.5
+        
 
         def laser_cones(msg): 
             #Reduced scanning range from 270 to 120 degrees
@@ -157,10 +158,10 @@ class Obstacle():
         def movement_decision(cones): # function to determine the movement of the robot
             LINEAR_VEL = 0.6
             ANGULAR_VEL = 1
-            
-            msg = Twist() # create a Twist message to send velocity commands
-            linear_x = 0
-            angular_z = 0
+            while (not rospy.is_shutdown()) and (time.time() < endTime):
+                msg = Twist() # create a Twist message to send velocity commands
+                linear_x = 0
+                angular_z = 0
             
             description = ""
             
