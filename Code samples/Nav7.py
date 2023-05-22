@@ -217,7 +217,7 @@ class Obstacle():
             #
         rospy.loginfo('Average speed: %f', self.average_speed)
         rospy.loginfo('Number of victims: %f', victims_found)
-        rospy.loginfo('Number of collisions: %f', Obstacle.)
+        rospy.loginfo('Number of collisions: %f', Obstacle.collision_counter)
         
 
 def main():
