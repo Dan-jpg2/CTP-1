@@ -100,12 +100,12 @@ class Obstacle():
         if samples_view is 1: 
             scan.append(scan.ranges[0])
         else:
-            left_lidar_range = -(samples_view // 2 + samples_view %2) # the left angle of the lidar range
-            right_lidar_range = samples_view // 2 # the right angle of the lidar range
+            left_lidar_range_ranges = -(samples_view // 2 + samples_view %2) # the left angle of the lidar range
+            right_lidar_range_ranges = samples_view // 2 # the right angle of the lidar range
 
-            left_lidar_sample = scan.range[left_lidar_range:] # the left sample of the lidar range
-            right_lidar_sample = scan.range[:right_lidar_range] # the right sample of the lidar range
-            scan_filter.extend(left_lidar_sample + right_lidar_sample) # add the left and right lidar samples to the scan_filter list
+            left_lidar_samples = scan.ranges[left_lidar_range_ranges:] # the left sample of the lidar range
+            right_lidar_samples = scan.ranges[:right_lidar_range_ranges] # the right sample of the lidar range
+            scan_filter.extend(left_lidar_samples + right_lidar_samples) # add the left and right lidar samples to the scan_filter list
 
         #filter the values so we get rid of the inf values and wrong scans
         for i in range(samples_view):
@@ -131,114 +131,94 @@ class Obstacle():
     
     def obstacle(self):
         twist = Twist() # create a Twist message to send velocity commands
-        updateTwist = False
-        RGB_cd = 0 # RGB cooldown
-        victims = 0 # number of victims found
-        collision_count = 0 # number of collisions
-        collision_cd = 0 # collision cooldown
-        sensor = RGBsensor() # initialize RGB sensor
-        timeToRun = 60 * 2 # 2 minutes run time
-        endTime = time.time() + timeToRun
-        twist = Twist() 
+        turtlebot_moving = True # set the initial state to moving
+        victims_found = 0  # number of victims found
+
+        TMR_CD = 0 #If stuck in a rotational loop, this will be used to break out of it
+
+        #Lightsensor
+        lightsensor = RGBsensor()
+
+        #Runtime loop - we have to run for 2 minutes
+        runTime = 60 * 2
+        endTime = time(time) + runTime
+
+        #Average speed
+        accumulated_speed = 0
+        speed_updates = 0
+
+        #Start of our loop
         while (not rospy.is_shutdown()) and (time.time() < endTime):
-            laser_cones(self.get_scan(120)) # call the laser_cones method
-        def turn(dir):
-            twist.angular.z = dir 
-            twist.linear.x = LINEAR_VEL * 0.5
-        
+            #Check colissions 
+            self.col_check()
 
-        def laser_cones(msg): 
-            #Reduced scanning range from 270 to 120 degrees
-            msg = Twist()
-            cones = {
-                'left':     min(min(msg.ranges[0:2]), 10),
-                'right':    min(min(msg.ranges[3:5]), 10),
-                'front':    min(min(msg.ranges[6:9]), 10),
-            }
-            movement_decision(cones)
-            
-        def movement_decision(cones): # function to determine the movement of the robot
-            LINEAR_VEL = 0.6
-            ANGULAR_VEL = 1
-            
-             # create a Twist message to send velocity commands
-            linear_x = 0
-            angular_z = 0
-            
-            description = ""
-            
-            if cones["front"] > SAFE_STOP_DISTANCE and cones["left"] > SAFE_STOP_DISTANCE and cones["right"] > SAFE_STOP_DISTANCE:
-                description = "no obstacles detected"
-                twist.linear.x = LINEAR_VEL 
-                twist.linear.z = 0
-            elif cones["front"] < SAFE_STOP_DISTANCE and cones['left'] < SAFE_STOP_DISTANCE and cones['right'] < SAFE_STOP_DISTANCE:
-                description = "Obstacle in front, left and right"
-                twist.linear.x = -LINEAR_VEL * 0.3
-                twist.linear.z = ANGULAR_VEL #We can adjust this to turn faster or slower???
-            elif cones['front'] < SAFE_STOP_DISTANCE and cones['left'] > SAFE_STOP_DISTANCE and cones['right'] > SAFE_STOP_DISTANCE:
-                description = 'Obstacle in front'
-                if cones["front"] < SAFE_STOP_DISTANCE *0.5:
-                    twist.linear.x = 0 
-                    twist.linear.z = ANGULAR_VEL 
+            #check victims
+            if (lightsensor.get_victims()):
+                victims_found += 1
+                rospy.loginfo('Victim found, total victims: %i', victims_found)    
+
+            #Get a lidar scan on 180 degree
+            lidar_distance = self.get_scan(180)
+
+            #Divide the scan into subgroups for a wider view with a bit of overlap as cones
+            super_front_cone = lidar_distance[80:100] # 20 degrees
+            front_cone = lidar_distance[55:125] # 70 degrees
+            left_cone = lidar_distance[0:67] # 67 degrees
+            right_cone = lidar_distance[113:180] # 67 degrees
+
+            #Moving forward and not having to turn
+            if turtlebot_moving:
+                minDistance = min(super_front_cone)
+
+                #If we are too close to an obstacle
+                if minDistance < SAFE_STOP_DISTANCE: # 
+                    twist.linear.x = -LINEAR_VEL*0.2 # Move backwards
+                    turtlebot_moving = False
                 else:
-                    twist.linear.x = LINEAR_VEL * 0.5
-                    twist.linear.z = ANGULAR_VEL
-            elif cones['front'] > SAFE_STOP_DISTANCE and cones['left'] > SAFE_STOP_DISTANCE and cones['right'] < SAFE_STOP_DISTANCE:
-                description = 'Obstacle on the right'
-                if cones["right"] < SAFE_STOP_DISTANCE * 0.5:
-                    twist.linear.x = LINEAR_VEL * 0.3
-                    twist.linear.z = -ANGULAR_VEL
-                else:
-                    twist.linear.x = LINEAR_VEL
-                    twist.linear.z = -ANGULAR_VEL
-            elif cones['front'] < SAFE_STOP_DISTANCE and cones['left'] < SAFE_STOP_DISTANCE and cones['right'] > SAFE_STOP_DISTANCE:
-                description = 'Obstacle on the left'
-                if cones["left"] < SAFE_STOP_DISTANCE * 0.5:    
-                    twist.linear.x = LINEAR_VEL *0.3
-                    twist.linear.z = ANGULAR_VEL
-                else:
-                    twist.linear.x = LINEAR_VEL
-                    twist.linear.z = ANGULAR_VEL
-            elif cones['front'] < SAFE_STOP_DISTANCE and cones['left'] > SAFE_STOP_DISTANCE and cones['right'] < SAFE_STOP_DISTANCE:
-                description = 'Obstacle in front, right'
-                if cones["front"] < SAFE_STOP_DISTANCE * 0.5: 
-                    twist.linear.x = 0
-                    twist.linear.z = ANGULAR_VEL
-                else:
-                    twist.linear.x = LINEAR_VEL * 0.5
-                    twist.linear.z = -ANGULAR_VEL
-            elif cones['front'] < SAFE_STOP_DISTANCE and cones['left'] < SAFE_STOP_DISTANCE and cones['right'] > SAFE_STOP_DISTANCE:
-                description = 'Obstacle in front, left'
-                if cones["front"] < SAFE_STOP_DISTANCE *0.5:
-                    twist.linear.x = 0
-                    twist.linear.z = -ANGULAR_VEL
-                else: 
-                    twist.linear.x = LINEAR_VEL * 0.5
-                    twist.linear.z = ANGULAR_VEL
-            elif cones['front'] > SAFE_STOP_DISTANCE and cones['left'] < SAFE_STOP_DISTANCE and cones['right'] < SAFE_STOP_DISTANCE:
-                description = 'Obstacle on the left and right'
-                twist.linear.x = LINEAR_VEL 
-                twist.linear.z = 0
+                    if minDistance < SAFE_TURN_DISTANCE: # If we are too close to an obstacle
+                        min_index = front_cone.index(min(front_cone)) # Get the index of the closest obstacle
+                        if min_index < 35: #90 degrees
+                            factor = 1
+                        else:
+                            factor = -1
+                            twist.linear.x = LINEAR_VEL # Move forward
+                            twist.angular.z = factor * self._turn_speed # Turn
+                    else:
+                        twist.linear.x = LINEAR_VEL # Move forward
+                        twist.angular.z = 0.0# Turn
+
+                    TMR_CD = 4 # Reset the timer
+                    turtlebot_moving = True
             else:
-                description = 'Unknown case'
-                twist.linear.x = LINEAR_VEL
-                twist.linear.z = 0
-                rospy.loginfo(cones)
-                
+                minDistance = min(lidar_distance) # Get the minimum distance from the lidar scan
+                if min(super_front_cone) > SAFE_STOP_DISTANCE*2: # If we are far enough from the obstacle
+                    twist.linear.x = LINEAR_VEL # Move forward
+                    TMR_CD = 4
+                    turtlebot_moving = True
+                else:
+                    if TMR_CD > 0:
+                        min_index = lidar_distance.index(min(lidar_distance)) # Get the index of the closest obstacle
+                        if min_index >= 90:
+                            factor = -1
+                        else:
+                            factor = 1
+                    TMR_CD -= 1
 
-            self._cmd_pub.publish(twist)
-            self._cmd_pub.publish(description)
+                    twist.linear.x = 0.0
+                    twist.angular.z = factor 
+                    turtlebot_moving = False
+        
             time.sleep(0.27) # Sleep to delay evaluation for new data, get_scan doesn't work too fast
             #rospy.loginfo('Distance to the obstacle %f:', min_distance)
             #Average linear speed here _________________________________________________________________
             self.accumulated_speed += abs(twist.linear.x)
             self.speed_updates += 1
             self.average_speed = self.accumulated_speed / self.speed_updates
-            #self._cmd_pub.publish(twist)
-            time.sleep(0.27) # Sleep to delay evaluation for new data, get_scan doesn't work too fast
+            #
         rospy.loginfo('Average speed: %f', self.average_speed)
-        rospy.loginfo('Number of victims: %f', victims)
-        rospy.loginfo('Number of collisions: %f', collision_count)
+        rospy.loginfo('Number of victims: %f', victims_found)
+        rospy.loginfo('Number of collisions: %f', Obstacle.collision_counter)
+        
 
 def main():
     rospy.init_node('turtlebot3_obstacle')
