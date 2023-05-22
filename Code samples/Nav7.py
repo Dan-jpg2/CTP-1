@@ -91,6 +91,7 @@ class Obstacle():
         scan_filter = [] # create an empty list to store the filtered lidar data
         samples = len(scan.ranges) # get the number of samples
         samples_view = angle  # the number of samples to use for obstacle detection
+        null_count = 0 
 
         #If angle is bigger or equal to 360 angle is set to max
         if samples_view >= 360:
@@ -141,7 +142,7 @@ class Obstacle():
 
         #Runtime loop - we have to run for 2 minutes
         runTime = 60 * 2
-        endTime = time.time + runTime
+        endTime = time.time() + runTime
 
         #Average speed
         accumulated_speed = 0
