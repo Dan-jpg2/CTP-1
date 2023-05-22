@@ -141,7 +141,7 @@ class Obstacle():
 
         #Runtime loop - we have to run for 2 minutes
         runTime = 60 * 2
-        endTime = time(time) + runTime
+        endTime = time.time + runTime
 
         #Average speed
         accumulated_speed = 0
@@ -217,7 +217,7 @@ class Obstacle():
             #
         rospy.loginfo('Average speed: %f', self.average_speed)
         rospy.loginfo('Number of victims: %f', victims_found)
-        rospy.loginfo('Number of collisions: %f', Obstacle.collision_counter)
+        rospy.loginfo('Number of collisions: %f', Obstacle.)
         
 
 def main():
