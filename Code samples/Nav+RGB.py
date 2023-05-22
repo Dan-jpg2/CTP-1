@@ -113,15 +113,14 @@ class Obstacle():
         time_to_run = 60 * 2 # 2 minutes
         time_left = time.time() + time_to_run
 
-
-            # RGB detection of victims of color red
-            #if RGB_cd <= 0:
-            #    if lightdata[0] > 80:
-            #        victims += 1
-            #        RGB_cd = 5
-            #        rospy.loginfo("Victim found, total victims: {} ".format(victims))
-            #else:
-            #    RGB_cd -= 1
+        #RGB detection of victims of color red
+        if RGB_cd <= 0:
+            if lightdata[0] > 80:
+                victims += 1
+                RGB_cd = 5
+                rospy.loginfo("Victim found, total victims: {} ".format(victims))
+            else:
+                RGB_cd -= 1
 
         while (not rospy.is_shutdown() and (time.time() < time_left)): # loop until user presses Ctrl+C
             lidar_distances = self.get_scan() # get the filtered lidar data
@@ -184,10 +183,13 @@ class Obstacle():
         speed_updates += 1
         average_speed = accumulated_speed / speed_updates
         self._cmd_pub.publish(twist)
+        
 
 
 
         rospy.loginfo('Average linear speed: {}'.format(average_speed))
+        rospy.loginfo('Total victims found: {}'.format(victims))
+        rospy.loginfo('Total collisions: {}'.format(collision_count))
         
 
 def main():
