@@ -70,8 +70,8 @@ class RGBsensor(): #RGB sensor class
 
 
 class Obstacle():
-    colission_count = 0 # number of collisions
-    colission_cd = 0 # collision cooldown
+    collision_count = 0 # number of collisions
+    collision_cd = 0 # collision cooldown
 
     def __init__(self):
         self._cmd_pub = rospy.Publisher('cmd_vel', Twist, queue_size=1) # Try queue size 0??
@@ -125,7 +125,7 @@ class Obstacle():
         if(min(full_dist) < COL_DISTANCE and Obstacle.collision_cooldown < 1):
             Obstacle.collision_counter += 1
             Obstacle.collision_cooldown = 5
-            rospy.loginfo('COLLISION, total collisions: %i', Obstacle.collision_counter)
+            rospy.loginfo('COLLISION, total collisions: %i', Obstacle.collision_count)
         else:
             Obstacle.collision_cooldown -= 1
 
@@ -134,6 +134,7 @@ class Obstacle():
         twist = Twist() # create a Twist message to send velocity commands
         turtlebot_moving = True # set the initial state to moving
         victims_found = 0  # number of victims found
+        
 
         TMR_CD = 0 #If stuck in a rotational loop, this will be used to break out of it
 
@@ -218,7 +219,7 @@ class Obstacle():
             #
         rospy.loginfo('Average speed: %f', self.average_speed)
         rospy.loginfo('Number of victims: %f', victims_found)
-        rospy.loginfo('Number of collisions: %f', Obstacle.collision_counter)
+        rospy.loginfo('Number of collisions: %f', Obstacle.collision_count)
         
 
 def main():
