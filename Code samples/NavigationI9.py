@@ -95,7 +95,7 @@ class Obstacle():
 
         def nextTurn(dir):
             twist.angular.z = dir
-            twist.linear.x = LINEAR_VEL * 0.9
+            twist.linear.x = LINEAR_VEL
 
         while (not rospy.is_shutdown() and (time.time() < endTime)): # loop for 2 minutes or until user CTRL + C
             scan_read = self.get_scan() # get the filtered lidar data
@@ -147,16 +147,16 @@ class Obstacle():
                 elif(rightEval <= leftEval):
                     #Turn left
                     if(frontEval < leftEval):
-                        nextTurn(-3.0) # Turn a lot, if front is closer than our left
+                        nextTurn(3.0) # Turn a lot, if front is closer than our left
                     else:
-                        nextTurn(-3.0 * (leftEval / frontLeft))
+                        nextTurn(3.0 * (leftEval / frontLeft))
 
                 else:
                     #Turn right
                     if(frontEval < rightEval):
-                        nextTurn(3.0)
+                        nextTurn(-3.0)
                     else:
-                        nextTurn(3.0 * (rightEval / frontRight))
+                        nextTurn(-3.0 * (rightEval / frontRight))
                 
             else:
                 twist.linear.x = LINEAR_VEL
