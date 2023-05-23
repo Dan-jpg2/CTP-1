@@ -144,19 +144,19 @@ class Obstacle():
                     twist.angular.z = 1.5
                     rospy.loginfo('Cornered, do a 180!')
 
-                elif(rightEval < leftEval):
+                elif(rightEval <= leftEval):
                     #Turn left
                     if(frontEval < leftEval):
-                        nextTurn(3.0) # Turn a lot, if front is closer than our left
+                        nextTurn(-3.0) # Turn a lot, if front is closer than our left
                     else:
-                        nextTurn(3.0 * (leftEval / frontLeft))
+                        nextTurn(-3.0 * (leftEval / frontLeft))
 
                 else:
                     #Turn right
                     if(frontEval < rightEval):
-                        nextTurn(-3.0)
+                        nextTurn(3.0)
                     else:
-                        nextTurn(-3.0 * (rightEval / frontRight))
+                        nextTurn(3.0 * (rightEval / frontRight))
                 
             else:
                 twist.linear.x = LINEAR_VEL
