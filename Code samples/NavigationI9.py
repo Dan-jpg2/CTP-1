@@ -129,56 +129,35 @@ class Obstacle():
             collision_cd -= 1 # Cooldown for loop cycles on colissions
 
             if min(frontCone) < FRONT_STOP_DIST:
-                part = int(len(rightCone)/2) # Use to look more detailed in the side cones
                 frontPart = int(len(frontCone)/2) # Split front cone in left and right
 
+                frontEval = min(frontCone)
                 frontRight = min(frontCone[:frontPart])
                 frontLeft = min(frontCone[frontPart:])
-                rightEval1 = min(rightCone[:part])
-                rightEval2 = min(rightCone[part:])
-                leftEval1 = min(leftCone[part:])
-                leftEval2 = min(leftCone[:part])
 
                 rightEval = min(rightCone) # Split the entire FOV into left and right
                 leftEval = min(leftCone)
 
-
-                if(rightEval < leftEval):
-                    
-
-                if (rightEval < SAFE_STOP_DISTANCE/2.5 and leftEval < SAFE_STOP_DISTANCE/2.5): 
+                if (rightEval < SAFE_STOP_DISTANCE/2.5 and leftEval < SAFE_STOP_DISTANCE/2.5 and frontEval < SAFE_STOP_DISTANCE/2.5): 
                     # If we think we're cornered, do a 180
                     twist.linear.x = 0.0
                     twist.angular.z = 1.5
                     rospy.loginfo('Cornered, do a 180!')
 
-                elif(leftEval <= rightEval): # Decide if it's more important to turn left or right in general
-                    #Turn right
-                    if frontLeft < 
-
-                    twist.angular.z = -0.3 * 1/leftEval # Default turn a little if something is in the way
-                    if(frontLeft < FRONT_STOP_DIST/1.35):
-                        nextTurn(-0.7)
-                        rospy.loginfo('Very Right!')
-                    elif(leftEval1 < SAFE_STOP_DISTANCE):
-                        nextTurn(-0.5)
-                        rospy.loginfo('Right!')
-                    elif(leftEval2 < SAFE_STOP_DISTANCE):
-                        nextTurn(-0.3)
-                        rospy.loginfo('Slight Right')
-                else:
+                elif(rightEval < leftEval):
                     #Turn left
-                    twist.angular.z = 0.3 * 1/rightEval # Default small turn
-                    if(frontRight < FRONT_STOP_DIST/1.5):
-                        nextTurn(0.7)
-                        rospy.loginfo('Very Left!')
-                    elif(rightEval1 < SAFE_STOP_DISTANCE):
-                        nextTurn(0.5)
-                        rospy.loginfo('Left!')
-                    elif(rightEval2 < SAFE_STOP_DISTANCE):
-                        nextTurn(0.3)
-                        rospy.loginfo('Slight Left!')
+                    if(frontEval < leftEval):
+                        nextTurn(3.0) # Turn a lot, if front is closer than our left
+                    else:
+                        nextTurn(3.0 * (leftEval / frontLeft))
 
+                else:
+                    #Turn right
+                    if(frontEval < rightEval):
+                        nextTurn(-3.0)
+                    else:
+                        nextTurn(-3.0 * (rightEval / frontRight))
+                
             else:
                 twist.linear.x = LINEAR_VEL
                 twist.angular.z = 0.0
