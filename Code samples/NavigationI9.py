@@ -95,7 +95,7 @@ class Obstacle():
 
         def nextTurn(dir):
             twist.angular.z = dir
-            twist.linear.x = LINEAR_VEL * 0.2
+            twist.linear.x = LINEAR_VEL
 
         while (not rospy.is_shutdown() and (time.time() < endTime)): # loop for 2 minutes or until user CTRL + C
             scan_read = self.get_scan() # get the filtered lidar data
