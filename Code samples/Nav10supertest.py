@@ -189,7 +189,7 @@ class Obstacle():
                     rospy.loginfo('Victim found, total count: %d', victims)
             
             
-            if min(front_dist) < 0.04 + LIDAR_ERROR or min(right_dist) < 0.05 + LIDAR_ERROR or min(left_dist) < 0.05 + LIDAR_ERROR:
+            if front_dist < 0.04 + LIDAR_ERROR or right_dist < 0.05 + LIDAR_ERROR or left_dist < 0.05 + LIDAR_ERROR:
                 if collision_cd < 1:
                    collision_count += 1
                    collision_cd = 5
