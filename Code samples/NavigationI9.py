@@ -35,7 +35,7 @@ from geometry_msgs.msg import Twist
 
 LINEAR_VEL = 0.22 # Corrected for reverse motors on this robot
 LIDAR_ERROR = 0.06 # prev 0.05
-SAFE_STOP_DISTANCE = 0.12 + LIDAR_ERROR
+SAFE_STOP_DISTANCE = 0.15 + LIDAR_ERROR
 FRONT_STOP_DIST = 0.25 + LIDAR_ERROR
 
 
@@ -95,7 +95,7 @@ class Obstacle():
 
         def nextTurn(dir):
             twist.angular.z = dir
-            twist.linear.x = LINEAR_VEL
+            twist.linear.x = LINEAR_VEL * 0.9
 
         while (not rospy.is_shutdown() and (time.time() < endTime)): # loop for 2 minutes or until user CTRL + C
             scan_read = self.get_scan() # get the filtered lidar data
