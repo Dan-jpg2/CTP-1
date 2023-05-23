@@ -53,12 +53,11 @@ class RGBsensor(): #RGB sensor class
 class Obstacle():
     def __init__(self):
         self._cmd_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
-        self.obstacle()
-        
         self._turn_speed = 0.5
         self.accumulated_speed = 0
         self.speed_updates = 0
         self.average_speed = 0
+        self.obstacle()
     
     def get_scan(self):
         scan = rospy.wait_for_message('scan', LaserScan)
