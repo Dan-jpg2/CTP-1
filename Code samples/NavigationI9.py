@@ -34,9 +34,9 @@ from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
 
 LINEAR_VEL = 0.22 # Corrected for reverse motors on this robot
-LIDAR_ERROR = 0.06 # prev 0.05
+LIDAR_ERROR = 0.05 # prev 0.05
 SAFE_STOP_DISTANCE = 0.15 + LIDAR_ERROR
-FRONT_STOP_DIST = 0.25 + LIDAR_ERROR
+FRONT_STOP_DIST = 0.28 + LIDAR_ERROR
 
 
 class RGBsensor(): #RGB sensor class
@@ -92,10 +92,16 @@ class Obstacle():
         timeToRun = 60 * 2 # 2 minutes run time
         endTime = time.time() + timeToRun
         curBlue = (sensor.get_rgb())[2]
+        leftLoop = 0
+        rightLoop = 0
 
-        def nextTurn(dir):
+
+        def nextTurn(dir, rev):
             twist.angular.z = dir
-            twist.linear.x = LINEAR_VEL
+            if rev:
+                twist.linear.x = -LINEAR_VEL
+            else:
+                twist.linear.x = LINEAR_VEL
 
         while (not rospy.is_shutdown() and (time.time() < endTime)): # loop for 2 minutes or until user CTRL + C
             scan_read = self.get_scan() # get the filtered lidar data
@@ -109,17 +115,30 @@ class Obstacle():
             rospy.loginfo('Red value %d, Blue value %d', newRed, newBlue)
             if newBlue < curBlue * 0.8 or newBlue > curBlue * 1.2:
                 curBlue = newBlue # new baseline
-                if newRed > 400 and newBlue < 200: # Check if we are currently over a tag
+                if newRed > 400 and newBlue < 200: # Check if we are currently over a red tag
                     victims += 1
                     rospy.loginfo('Victim found, total count: %d', victims)
     
-            samples = len(lidar_distances) #update samples
             #Partition readings into cones for evaluating navigation from
-            frontCone = lidar_distances[90:150] # -30 deg to +30 deg
-            rightCone = lidar_distances[150:] # 30 deg to 120 deg
-            leftCone = lidar_distances[:90] # -120 deg to -30 deg
+            frontCone = lidar_distances[95:145] # -25 deg to +25 deg
+            rightCone = lidar_distances[:95] # 25 deg to 120 deg
+            leftCone = lidar_distances[145:] # -120 deg to -25 deg
             min_distance = min(lidar_distances) # get the minimum distance of the filtered lidar data
             rospy.loginfo('Lidar min dist: %f', min_distance)
+
+            ##### Evaluation Variables #####
+            frontPart = int(len(frontCone)/2) # Split front cone in left and right
+            frontRight = min(frontCone[:frontPart])
+            frontLeft = min(frontCone[frontPart:])
+            frontEval = min(frontCone)
+            rightEval = min(rightCone)
+            leftEval = min(leftCone)
+            #####     Eval var end     #####
+            print('Front right min:', frontRight)
+            print('Front left min:', frontLeft)
+            print('Front eval min:', frontEval)
+            print('right eval min:', rightEval)
+            print('left eval min:', leftEval)
 
             if min(frontCone) < 0.04 + LIDAR_ERROR or min(rightCone) < 0.05 + LIDAR_ERROR or min(leftCone) < 0.05 + LIDAR_ERROR:
                 if collision_cd < 1:
@@ -129,47 +148,44 @@ class Obstacle():
             collision_cd -= 1 # Cooldown for loop cycles on colissions
 
             if min(frontCone) < FRONT_STOP_DIST:
-                frontPart = int(len(frontCone)/2) # Split front cone in left and right
 
-                frontEval = min(frontCone)
-                frontRight = min(frontCone[:frontPart])
-                frontLeft = min(frontCone[frontPart:])
-
-                rightEval = min(rightCone) # Split the entire FOV into left and right
-                leftEval = min(leftCone)
-
-                if (rightEval < SAFE_STOP_DISTANCE/2.5 and leftEval < SAFE_STOP_DISTANCE/2.5 and frontEval < SAFE_STOP_DISTANCE/2.5): 
-                    # If we think we're cornered, do a 180
-                    twist.linear.x = 0.0
-                    twist.angular.z = 1.5
-                    rospy.loginfo('Cornered, do a 180!')
-
-                elif(rightEval <= leftEval):
+                if(rightEval <= leftEval):
                     #Turn left
-                    if(frontEval < leftEval):
-                        nextTurn(3.0) # Turn a lot, if front is closer than our left
+                    leftLoop += 1
+                    rightLoop = 0
+                    if leftLoop > 7:
+                        nextTurn(-3.0, True) # If we repeat too much, probably stuck, reverse
+                    
+                    elif(frontEval < leftEval):
+                        nextTurn(3.0, False) # Turn a lot, if front is closer than our left
                     else:
-                        nextTurn(3.0 * (leftEval / frontLeft))
+                        nextTurn(1 + 2.5 * (leftEval / frontLeft), False)
 
                 else:
                     #Turn right
-                    if(frontEval < rightEval):
-                        nextTurn(-3.0)
+                    rightLoop += 1
+                    leftLoop = 0
+                    if rightLoop > 7: # If we repeat too much, probably stuck, reverse
+                        nextTurn(3.0, True)
+
+                    elif(frontEval < rightEval):
+                        nextTurn(-3.0, False)
                     else:
-                        nextTurn(-3.0 * (rightEval / frontRight))
+                        nextTurn(-1 - 2.5 * (rightEval / frontRight), False)
                 
             else:
-                twist.linear.x = LINEAR_VEL
-                twist.angular.z = 0.0
+                rightLoop = 0
+                leftLoop = 0
+                nextTurn(0.0, False)
                 rospy.loginfo('Continue straight')
+
             self._cmd_pub.publish(twist)
-                
             #Average linear speed here 
-            self.accumulated_speed += abs(twist.linear.x)
+            self.accumulated_speed += twist.linear.x # abs(twist.linear.x) # Was this previously, but doesn't make sense with reverse (we're not keeping speed)
             self.speed_updates += 1
             self.average_speed = self.accumulated_speed / self.speed_updates
 
-            time.sleep(0.25) # Sleep to delay evaluation for new data, get_scan doesn't work too fast
+            time.sleep(0.22) # Sleep to delay evaluation for new data, get_scan doesn't work too fast
         rospy.loginfo('Average speed: %f\nVictims Found: %d\nCollisions detected: %d', self.average_speed, victims, collision_count)
         
 def main():
