@@ -93,9 +93,11 @@ class Obstacle():
         RGB_CD = 0
         victims = 0
         collision_count = 0
+        collision_cd = 0
         sensor = RGBsensor()
         timeToRun = 60 * 2
         endTime = time.time() + timeToRun
+        curBlue = (sensor.get_rgb())[2]
         
         
         def small_turns(direction, angle, velocity):
