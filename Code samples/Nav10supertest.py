@@ -171,21 +171,6 @@ class Obstacle():
         #Main loop from here
         while (not rospy.is_shutdown() and (time.time() < endTime)):
             
-            newRed, dummy, newBlue = sensor.get_rgb()
-            rospy.loginfo('Red value %d, Blue value %d', newRed, newBlue)
-            if newBlue < curBlue * 0.8 or newBlue > curBlue * 1.2:
-                curBlue = newBlue # new baseline
-                if newRed > 400 and newBlue < 200: # Check if we are currently over a tag
-                    victims += 1
-                    rospy.loginfo('Victim found, total count: %d', victims)
-            
-            if min(front_dist) < 0.04 + LIDAR_ERROR or min(right_dist) < 0.05 + LIDAR_ERROR or min(left_dist) < 0.05 + LIDAR_ERROR:
-                if collision_cd < 1:
-                   collision_count += 1
-                   collision_cd = 5
-                   rospy.loginfo('Collision detected, total collisions: %d', collision_count)   
-            collision_cd -= 1 # Cooldown for loop cycles on colissions
-            
             lidar_distances = self.get_scan()
             non_zero(lidar_distances)
             #Calculation of the slices / cones
@@ -194,7 +179,22 @@ class Obstacle():
             right_dist = np.mean(lidar_distances[3])
             front_left_dist = np.mean(lidar_distances[4])
             front_right_dist = np.mean(lidar_distances[5])
+
+            newRed, dummy, newBlue = sensor.get_rgb()
+            rospy.loginfo('Red value %d, Blue value %d', newRed, newBlue)
+            if newBlue < curBlue * 0.8 or newBlue > curBlue * 1.2:
+                curBlue = newBlue # new baseline
+                if newRed > 400 and newBlue < 200: # Check if we are currently over a tag
+                    victims += 1
+                    rospy.loginfo('Victim found, total count: %d', victims)
             
+            
+            if min(front_dist) < 0.04 + LIDAR_ERROR or min(right_dist) < 0.05 + LIDAR_ERROR or min(left_dist) < 0.05 + LIDAR_ERROR:
+                if collision_cd < 1:
+                   collision_count += 1
+                   collision_cd = 5
+                   rospy.loginfo('Collision detected, total collisions: %d', collision_count)   
+            collision_cd -= 1 # Cooldown for loop cycles on colissions
             emergency_test(lidar_distances)
             
             #Here our different cases we might encounter
