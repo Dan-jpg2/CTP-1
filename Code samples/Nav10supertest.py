@@ -64,8 +64,6 @@ class Obstacle():
         scan = rospy.wait_for_message('scan', LaserScan)
         scan_filter = []
         
-        
-        
         left_lidar_samples_range = 60
         right_lidar_samples_range = 345
         front_lidar_samples_range = 15
