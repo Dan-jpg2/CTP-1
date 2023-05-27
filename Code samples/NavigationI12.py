@@ -63,11 +63,11 @@ class Obstacle():
         self.accumulated_speed = 0
         self.speed_updates = 0
         self.average_speed = 0
-        self.obstacle() # call the obstacle method
+        self.obstacle() # Done initializing, begin operation
     
 
     def get_scan(self):
-        scan = rospy.wait_for_message('scan', LaserScan) # wait for laser scan message
+        scan = rospy.wait_for_message('scan', LaserScan) # Listener for next 'scan' message from the lidar
         scan_filter = [] # create empty array to store filtered lidar data
         # https://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/LaserScan.html    
 
@@ -77,7 +77,7 @@ class Obstacle():
         for i in range(len(scan_filter)): # iterate through the filtered lidar data
             curRead = scan_filter[i]
             if curRead == float('Inf') or curRead < 0.01 or math.isnan(curRead): # check if the lidar data is gibberish
-                scan_filter[i] = 1.0 # set the lidar data to a large number (invalid)
+                scan_filter[i] = 10.0 # set the lidar data to a large number (invalid)
         return scan_filter
     
 
@@ -90,26 +90,25 @@ class Obstacle():
         timeToRun = 60 * 2 # 2 minutes run time
         endTime = time.time() + timeToRun
         curBlue = (sensor.get_rgb())[2] # Get first baseline reading for detecting victims
-        stuck = False
+        cornered = False
         rightTurn = True # Default case, we have to define this before use
         rightLoop = 0
         leftLoop = 0
 
-        def driveUpdate(dir, speed):
+        def driveUpdate(dir, speed): # Simplify updating speed and turns
             twist.angular.z = dir
             twist.linear.x = speed
 
         while (not rospy.is_shutdown() and (time.time() < endTime)): # loop for 2 minutes or until user CTRL + C
             scan_read = self.get_scan() # get the filtered lidar data
-            samples = len(scan_read)
-
+            
             # Discard readings beyond the scope we want to work with here (take from -90 to +90 deg)
             lidar_distances = scan_read[:90][::-1]
-            lidar_distances.extend(scan_read[270:][::-1])
+            lidar_distances.extend(scan_read[270:][::-1]) # Store our data from left to right view
             
-            newRed, dummy, newBlue = sensor.get_rgb()
-            rospy.loginfo('Red value %d, Blue value %d', newRed, newBlue)
-            if newBlue < curBlue * 0.8 or newBlue > curBlue * 1.2:
+            newRed, dummy, newBlue = sensor.get_rgb() # Get values for victim detection (red and blue)
+            rospy.loginfo('Red value %d, Blue value %d', newRed, newBlue) # debug
+            if newBlue < curBlue * 0.8 or newBlue > curBlue * 1.2: # Only care about the RGB readings if the data is 20% different from last baseline (prevents double counts)
                 curBlue = newBlue # new baseline
                 if newRed > 400 and newBlue < 200: # Check if we are currently over a red tag
                     victims += 1
@@ -120,9 +119,6 @@ class Obstacle():
             rightCone = lidar_distances[120:] # 30 deg to 90 deg
             leftCone = lidar_distances[:60] # -90 deg to -30 deg
 
-            frontPart = int(len(frontCone)/2) # Split front cone in left and right
-            frontRight = min(frontCone[frontPart:])
-            frontLeft = min(frontCone[:frontPart])
             rightEval = min(rightCone)
             leftEval = min(leftCone)
             frontEval = min(frontCone)
@@ -130,25 +126,22 @@ class Obstacle():
             fullLeft = min(lidar_distances[:90])
             fullRight = min(lidar_distances[90:])
 
-
-
-            print('Front right min:', frontRight)
-            print('Front left min:', frontLeft)
+            print('left eval min:', leftEval) # debugging
+            print('front eval min:', frontEval)
             print('right eval min:', rightEval)
-            print('left eval min:', leftEval)
-
-            if min(scan_read) < 0.05 + LIDAR_ERROR:
+            
+            if min(scan_read) < 0.05 + LIDAR_ERROR: # If something is within 5 cm (+ error) count up collision (unless on cooldown)
                 if collision_cd < 1:
                    collision_count += 1
                    collision_cd = 9
                    rospy.loginfo('Collision detected, total collisions: %d', collision_count)   
             collision_cd -= 1 # Cooldown for loop cycles on colissions
 
-            if(stuck):
+            if(cornered): # If we've been cornered, this lets us turn until we find a way out
                 leftLoop = 0
                 rightLoop = 0
                 if(frontEval > EMERGENCY_STOP_DIST * 1.6):
-                    stuck = False
+                    cornered = False
                     driveUpdate(0.0, LINEAR_VEL)
                 else:
                     if(rightTurn):
@@ -156,31 +149,31 @@ class Obstacle():
                     else:
                         driveUpdate(1.0, 0.0)
             
-            elif frontEval < FRONT_SAFE_DIST:
-                # Turn decision
+            elif frontEval < FRONT_SAFE_DIST: # If obstacle in front, turn
+                # Turn direction decision
                 if(fullLeft <= fullRight):
                     rightTurn = True
                 else:
                     rightTurn = False
 
-                if(narrowFront < EMERGENCY_STOP_DIST): # Determine if stuck
-                    stuck = True
+                if(narrowFront < EMERGENCY_STOP_DIST): # Determine if cornered
+                    cornered = True
                     driveUpdate(0.0, -0.1)
 
-                elif(rightTurn): 
+                elif(rightTurn): # Need to turn, not cornered
                     #Turn right
-                    driveUpdate(-0.5 - 0.15/leftEval, LINEAR_VEL) # Default turn a little if somethign is in the way
+                    driveUpdate(-0.5 - 0.15/leftEval, LINEAR_VEL) # Default turn a little if something is in the way
                     rightLoop += 1
                     leftLoop = 0
-                    if(rightLoop > 9):
+                    if(rightLoop > 9): # if we seem stuck on a corner we can't see, reverse
                         driveUpdate(1.4, -0.4 * LINEAR_VEL)
                     
                     elif(leftEval < SAFE_STOP_DISTANCE):
-                        driveUpdate(-1.0 - 0.22/leftEval, LINEAR_VEL)
+                        driveUpdate(-1.0 - 0.22/leftEval, LINEAR_VEL) # Turn depending on how close an obstacle is
                         rospy.loginfo('Right!')
                 else:
                     #Turn left
-                    driveUpdate(0.5 + 0.15/rightEval, LINEAR_VEL) # Default small turn
+                    driveUpdate(0.5 + 0.15/rightEval, LINEAR_VEL)
                     leftLoop += 1
                     rightLoop = 0
                     if(leftLoop > 10):
@@ -190,20 +183,21 @@ class Obstacle():
                         driveUpdate(1.0 + 0.22/rightEval, LINEAR_VEL)
                         rospy.loginfo('Left!')
 
-            else:
+            else: # Continue straight, if no obstacles ahead
                 leftLoop = 0
                 rightLoop = 0
                 driveUpdate(0.0, LINEAR_VEL)
                 rospy.loginfo('Continue straight')
-            self._cmd_pub.publish(twist)
+            self._cmd_pub.publish(twist) # Publish our decision on what to do
                 
-            #Average linear speed here 
+            #Average linear speed updates here
             self.accumulated_speed += abs(twist.linear.x)
             self.speed_updates += 1
             self.average_speed = self.accumulated_speed / self.speed_updates
 
             time.sleep(0.2) # Sleep to delay evaluation for new data, get_scan doesn't work too fast
         rospy.loginfo('Average speed: %f\nVictims Found: %d\nCollisions detected: %d', self.average_speed, victims, collision_count)
+        # Print variables at the end of run
         
 def main():
     rospy.init_node('turtlebot3_obstacle')
