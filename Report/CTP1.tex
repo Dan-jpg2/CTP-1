@@ -5,12 +5,14 @@
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{algorithmic}
 \usepackage{graphicx}
+\graphicspath{ {img/} }
 \usepackage{hyperref}
 \hypersetup{
     hidelinks
 }
 \usepackage{textcomp}
 \usepackage{xcolor}
+\usepackage{wrapfig}
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 \begin{document}
@@ -41,64 +43,312 @@ component, formatting, style, styling, insert
 \end{IEEEkeywords}
 
 \section{Introduction}
-In this paper, we will discuss the process of implementing a robot for search and rescue purposes.\\
-We aim to understand the principles of a search and rescue robot, and how to develop such a robot from relevant components for 
-navigating and determining targets.\\
-Our development for this robot will be through the use of the Robot Operating System (ROS), which is a well-documented and diverse
-environment for robot development.
-\section{Specifications}
-\textit{What are the Specifications of the project, what was the purpose here?\\
-What do we have to work with?\\
-Details about our robot, and it's sensors system etc.\\}
+In this project, our main goal was to implement a Turtlebot3 robot for a simulated version of search and rescue purposes.\\
+This would involve creating a program to allow the robot to move autonomously and avoid obstacles, utilizing the 
+Robot Operating System (ROS), all while searching for targets on the floor.\\
+We also aim to optimize this robot for the highest possible speed, through an efficient navigation logic, 
+following the "see - think - act" concept.\\
 
+
+\section{Specifications}
 \subsection{TurtleBot3 Burger}
 In this project we are using the TurtleBot3 Burger robot, to practice our ROS based robot programming.\\
 The TurtleBot3 Burger is equipped with a Raspberry Pi 3 Model B \cite{b1} in combination with an OpenCR 1.0 board, to 
 provide us with options for programming and controlling it. \\
-Our Raspberry Pi is running Ubuntu 18.04 and is used to run our ROS-modules, so that we can 
-implement control and sensor usage for the Burger.\\
-The TurtleBot3 is a well-developed and popular mobile robot platform designed for education, research, and hobbyist purposes.
-It is an open-source robot that is capable of operating autonomously or being remotely controlled.
-It is equipped with a range of sensors, including a 360-degree LIDAR (Light Detection and Ranging) sensor, 
-a camera, an IMU (Inertial Measurement Unit), and wheel encoders, that allow it to navigate its environment and avoid obstacles.
-\\
 
 \subsection{LDS-01 LIDAR}
-Additionally the Burger has a Lidar scanner mounted on top, which we use for the navigation of the Burger.\\
-\\
-The LDS-01 LIDAR is a laser-based sensor that can be used to create a map of the robot's environment
-and detect obstacles. It uses a rotating laser to scan the surrounding area and can detect objects in the range from 0.12 to 3.5 meters \cite{b2}. The data from the LIDAR sensor can be used to create a 2D or 3D map of the environment,
-which can be used for navigation and obstacle avoidance.\\
+Additionally the Burger has an LDS-01\cite{b2} Lidar scanner mounted on top, which we use for the navigation of the Burger.\\
+
 
 \subsection{Raspberry Pi 3 Model B}
-The Raspberry Pi 3 Model B is a small, low-cost computer that can be used for a wide range of applications. This specific model
-features a 1.2 GHz quad-core processor, 1 GB of RAM, and built-in Wi-Fi and Bluetooth connectivity\cite{b3}.
-It is widely used in robotics due to its low cost, small size and versatility. In this instance, we use the Pi to run the control 
-software for the TurtleBot3 and processes the data from its sensors.
+The Raspberry Pi is a small-scale computer ideal for hobbyist purposes, with GPIO pins, that we could use to add extra sensors to
+our robot \cite{b3}.\\
 
 
 \subsection{RGB Sensor}
-ISL-29125 Model RGB sensor.
+Using the extra IO support of the Raspberry PI, we could add the ISL-29125 RGB sensor \cite{b4}, that allows us to simulate scanning for
+victims.\\
 
 
 \section{Process}
-\textit{Describe our work with the robot and its development, what are thoughts along the way and describe some overall problems and
-how we've fixed them}
+In this section we will elaborate on the process of developing our own understanding of the problem, and the solutions we have 
+come up with along the way.\\
 \subsection{Design and Implementation}
-For the navigation of our robot, we have decided to use the LIDAR sensor to read a horizontal view of distances to objects in front of
-our robot, in angles from $-70^{\circ}$ to $+70^{\circ}$ relative to the robots front.
+In this section we are going to talk about our own thoughts on design and implementation but in an abstract way.\\
+Concrete implementation and thoughts will come in the later sections. \\
+\vspace*{2pt}\\
+In the early stages of our process, we started out with the RGB sensor as it was a component that just had to be mounted 
+on the robot and connected to the Pi. If we could make that work, it was a simple matter of just implementing it later.\\
+Our intention was to make the sensor read some coloured tags from the floor, which would simulate victims that our robot 
+had to recognize as it moves around.\\
+Firstly we installed the necessary libraries on the Pi, \textit{smbus} to communicate with the sensor, and \textit{time} for 
+the initialization. \\
+To start working on the implementation, we were given a template, that already had the code for communicating through 
+\textit{smbus} with the sensor, to configure the registers of the sensor. We then had to add to that, a way to extract the red, 
+green and blue values from the registers within the sensor, so that we could use these in our to-be robot code, and detect 
+victims.\\
+After we got the RGB sensor working we moved on to theorize what implementation we wanted to use for navigation with the robot.\\
+Our Turtlebot3 was equipped with a LIDAR sensor which is capable of scanning 360° with a laser, that could measure distance. 
+It would return data in the form of an array like so:
+\[dist = \left[d_0, d_1, ..., d_{359}\right]\]
+Where $d_i$ is the distance to nearest object at $i$ degrees from the front of the sensor, going counterclockwise. 
+In the first implementation we would simply look at a span of $120^{\circ}$ that we would divide into three subcategories:
+\[left = \left[d_{60}, d_{59}, ..., d_{15}\right], N = 45\]
+\[front = \left[d_{14}, d_{13}, ..., d_0, d_{359}, d_{358}, ..., d_{345}\right], N = 30\]
+\[right = \left[d_{344}, d_{343}, ..., d_{300}\right], N = 45\]
 
-\textit{Potentially insert code snippet?}
+The reason we chose to only look forwards, was due to us thinking it would be smarter for the robot
+to simply turn instead of having to go backwards, since this would allow the robot to achieve an overall 
+higher average linear speed. \\
+Using these cones, we would have to specify what the robot would do in different cases, 
+which we implemented with if/else statements. Each of the abstract cases can be seen in the illustrations below. 
+Note that in Case 1, we would ideally make a sharp swing turn, instead of reversing out of the corner.
+\begin{figure}[h] %this figure will be at the left
+    \centering
+    \includegraphics[width=0.5\textwidth]{cases.png}
+    \caption{Theoretical cases for navigation}
+\end{figure} 
+
+Moving on, we could now get to work practically with the real robot, and at first we would need to set up ROS and 
+get familiar with it, before running our own code on it. Up until now it had all been mostly theoretical, 
+which would only get us so far.\\
+ROS is a necessary tool to help us control the robot. In short it is a collection 
+of tools, libraries and conventions that allows us to simplify the creation of complex and robust robot behavior.\\
+Having ROS installed, we needed to get to know it, and to that end we followed a tutorial. We downloaded the 
+Turtlebot3 packages to set up a virtual environment using ROS features, where we would be able to drive a simulation 
+of a turtle around a little screen with our keyboard. \\
+
+From here on and till the end of our timeframe, we continuously worked on the Robots navigation and optimization.
+We were presented with a sort of starter build of the code \cite{b5} for our robot's obstacle avoidance.\\
+The task at hand first was to update the given code and make the robot read from a different 
+span of angles using the LIDAR. \\
+\vspace*{2pt}\\
+At first we wanted to implement a way to read from angles -45° to 45° to 
+represent left and right. The current aim was to design according to the following picture\cite{b6}
+\begin{figure}[h] %this figure will be at the left
+    \centering
+    \includegraphics[width=0.5\textwidth]{initialNav.png}
+    \caption{Simple navigation logic}
+\end{figure} 
+We got the simple navigation to work and wanted to implement a reading from both Lidar and the RGB sensor 
+in a frequency that made sense. After we got the basics down, had a robot that could do simple maneuvering 
+and send relevant data from both Lidar and RGB sensor, it was time to optimize the navigation further.\\
+We would start by optimizing how the robot navigates and move on to optimizing the linear speed, where we had 
+to consider the linear speed vs the angular speed. In short, if we were to move faster forwards, we wouldn't be 
+able to make a sharp turn due to the higher speed. Likewise, if we must make a sharp turn, we won't be able to have 
+very high speed.\\
+To achieve a higher linear speed whilst turning would want to break the turn into smaller steps. 
+If our robot would be facing an obstacle, we want to calculate how much it should turn. Instead of making 
+the entire turn in one go, we wanted to apply half of the angle and store how much angle there is left 
+to apply it at the next publishing to complete the entire turn. See the following two pictures. \cite{b7}\\
+\begin{figure}[h] %this figure will be at the left
+    \centering
+    \includegraphics[width=0.4\textwidth]{betterNav1.png}
+\end{figure}\\
+\begin{figure}[h] %this figure will be at the left
+    \centering
+    \includegraphics[width=0.4\textwidth]{betterNav2.png}
+    \caption{Speed Optimization for turns}
+\end{figure} \\
+By doing this, we would in theory be able to always achieve a higher linear velocity whilst still avoiding 
+obstacles in our way.\\
+The final two things we wanted to implement was a way to calculate the average linear speed and to optimize 
+that so we would have the highest possible linear speed over the course of the time our robot was driving, 
+and a collision counter, which would increment if the distance to an obstacle was lower or equal to 4cm for 
+the front of the robot or 5cm for other angles.\\
+Our goal was to keep the linear speed as high as possible and the collision counter as low as possible.
+
 
 \subsection{Experiment setup and Results}
-Before you begin to format your paper, first write and save the content as a 
-separate text file. Complete all content and organizational editing before 
-formatting. Please note sections \ref{AA}--\ref{SCM} below for more information on 
-proofreading, spelling and grammar.
+\subsubsection{Method}
+During our process of making the program for the robot, we have been using a reiterated model called the waterfall model.
+This model is perfect for the structure of our project. Firstly, we would analyze the requirements. \\
+Then we make decisions based on how we think the robot should operate in different situations (System Design).\\
+Then we would make an implementation of our code (Implementation), and lastly, test the implementation by 
+letting the robot run, and observing it (Testing). Whatever failures we might find with the program, 
+we could then reiterate the process by either going back to system design, if our design choices were wrong, 
+or go to change the implementation if it simply behaved unexpectedly. See the following illustration.\\
+\vspace{4cm}\\
+\begin{figure}[h] %this figure will be at the left
+    \centering
+    \includegraphics[width=0.4\textwidth]{waterfallmodel.png}
+    \caption{Waterfall Model (selfmade illu.)}
+\end{figure} 
+\\
+\subsubsection{ROS Setup}
+As previously mentioned, before we could begin truly working with the actual robot, we needed some abstraction in place, 
+in this case ROS.\\
+ROS allows us to use packages that have previously been used for working with this robot platform, 
+and then quite simply customize our own node that can run our implementations of code. \\
+To familiarize ourselves with the workings of ROS, we did start by running through the tutorial of 
+virtually running a simulation using the different features of ROS. Learning the uses for ROS topics, packages, 
+nodes and messages.\\
+\vspace*{2pt}\\
+In practice, we used the turtlebot3\_example and \\turtlebot3\_bringup packages from the turtlebot3 repository \cite{b8}. \\
+The bringup package contained a launch file that ensured the necessities for the turtlebot3 would be running, 
+starting the LIDAR and ROScore. On top of this, we could use the turtlebot3\_example's turtlebot3\_obstacle node 
+to serve as a base for our own implementation of obstacle avoidance and navigation.\\
+\vspace*{2pt}\\
+This was handy as it already had the code for setting up the Twist message from geometry\_msgs and a topic to allow 
+us to control the motors on the robot simply using this premade message.\\
+Additionally it had an example of how to read the data from our LIDAR, also setting up a listener for the scan message, 
+from the LaserScan package.\\
+That was about the end of what we kept from the example however, as the actual implementation of the \textit{obstacle()} function 
+is completely changed, both in terms of principle and code. Additionally we did modify the \textit{get\_scan()} function, 
+though it's principally similar. The main difference, is that we changed how the filter worked, as invalid readings 
+in our implementation should not be set to 0.
+\\
+\vspace*{2pt}\\
+\subsubsection{Test setup}
+Following the waterfall model, we would need to test each implementation of code, to determine what changes should be made.\\
+We set up a little obstacle course made from cardboard boxes to function as walls, and some red paper dots on the ground 
+to simulate victims to be found. Our idea was the robot should navigate collision free whilst moving around without either 
+getting stuck in a loop where it would go in circles, or just getting stuck overall. \\
+The robot initially had a few problems with the course. The first struggle was it would register itself too close to an 
+obstacle and immediately try to turn, but as it turned a new obstacle would be spotted and it would only move a little 
+bit before turning again, creating a zig-zag effect. \\Another problem arose when we tried fixing the first problem, that 
+it would simply get too close to an obstacle and then get stuck on a wall because we turned too late. \\
+Our optimization and final solutions follow in the next section.
+\\
+\vspace*{2pt}\\
+\subsubsection{Optimization}
+In our first system design, the idea was that we wanted to maintain the linear speed constant throughout, and simply 
+decide to turn more or less depending on how close we were to an obstacle. \\
+We attempted this by partitioning the LIDARs view, as we have illustrated below, into a front cone and 2 cones on both 
+the left and right side of the bot. \\
+\begin{figure}[h] %this figure will be at the left
+    \centering
+    \includegraphics[width=0.5\textwidth]{turtleExample.png}
+    \caption{Design showcase and Example}
+\end{figure} \\
+In the illustration we have also included some red blobs to explain a scenario where these are obstacles. \\
+We would only decide to turn if something was in the front cone, as we would otherwise be able to continue. 
+When an obstacle was found in front, we would evaluate if there was more room on the left or right side of the bot, 
+to decide which way we should turn. In this case we would turn right, as the left has the closer obstacle. 
+To determine how much we would turn, we then had different cases, where we first determine if “Left 1” has an 
+object within a certain distance, and if it didn't we would check “Left 2”. The amount to turn was then determined 
+by a constant (different from “Left 1” to “Left 2”) plus a variable fraction, based on the distance to the obstacle. 
+This allowed the amount we turned to be relative to how close an obstacle was, which should in theory give us smoother turns.
+\\\\
+This implementation however, took many iterations and wasn't quite working, we found the bot would be too stubborn with 
+going forward, and unable to avoid obstacles if it ever got into a corner that was too tight. 
+This would likely be because the decision for turning would be too narrowly minded, as we don't have a 
+full mapping of the terrain, just deciding based on which side had the closer wall. 
+This would eventually get it to turn into corners, but turn too little to avoid a wall on the right, 
+when the left wall was just a little closer. We needed a new edge case to deal with being cornered.
+\\\\
+During the later iterations, we noticed some strange decisions from the bot, and decided to add some debugging print
+statements, to allow us to see which cones saw what. At this moment we realized we had in fact messed up the cones 
+relative to the LIDAR, as we had reversed it entirely, assuming that the array of data from the LIDAR would be ordered 
+chronologically with the direction it spins. \\
+However this turned out to not be the case, and it was in fact reversed. 
+Still we decided to rework the principles on which it should turn slightly. \\
+Moving to the next iteration, we would instead only evaluate ±90° from the front, 
+still keeping the front cone, but only using one left and right cone, 
+and still maintaining the fraction based turn decisions. \\
+Of course here we would also add solutions to combat getting stuck in a corner, even if this meant slowing down or backing up slightly. 
+This was done by adding a new check, to determine if there was an obstacle very close to an even narrower front cone, at just ±15°, 
+this would usually only be triggered if a previous turn had put our nose close to another wall. 
+In this case we would stop moving forward, and simply continue turning until our entire front-cone 
+was cleared of any immediate obstacles. This of course sacrifices a good bit 
+of the average linear speed, however it felt like it was the better option compared to getting stuck. 
+Additionally we did add another measure if we ended up being truly stuck, by counting the number of repeated turn decisions, 
+if we repeated the same loop too often, we decided it likely meant we were stuck on a corner, as had been observed during testing, 
+and then we could reverse out of this situation, to make a new decision instead.
+\\\\
+\subsubsection{Program design}
+Our program has its roots in the Turtlebot3\_example package \cite{b5}, using a similar structure for the \textit{Obstacle} class,
+additionally we added the simple RGB Sensor class from our previous work, to initialize the sensor for use in the main loop.
+\\\\
+Below we will describe the details of our obstacle avoidance loop, and what each iteration goes through.
+\begin{itemize}
+\item \textbf{Get LIDAR data}\\
+Starting off each loop, we must get a new reading from the LIDAR to be able to navigate with current positional data.\\
+For this we have the \textit{get\_scan()} function, which is quite similar in structure to the one from the template.
+\begin{figure}[h] %this figure will be at the left
+    \centering
+    \includegraphics[width=0.5\textwidth]{get_scan.png}
+    \caption{\textit{get\_scan()} function}
+\end{figure} \\
+We listen for a new message from the LIDAR and then proceed to filter this data sorting out 
+values like infinity, 0 and NaN, setting these entries to 10 instead, which we know is not going to affect our navigation.\\
+\item \textbf{Sort and Evaluate Data}\\
+Having received the filtered data from the \textit{get\_scan()} function, we need to organize it and evaluate it,
+to be able to use it for navigation.
+\begin{figure}[h] %this figure will be at the left
+    \centering
+    \includegraphics[width=0.5\textwidth]{evaluateAndSort.png}
+    \caption{Organize data}
+\end{figure} \\
+We do this by creating a new array, intended to store our readings in order from left to right, starting at -90 degrees up 
+to 90 degrees. Since our LIDAR returns an array of 360 readings, one from each degree of angle, we take the first 90 
+readings which are on the left side of the bot, and reverse this, because it by default is stored right to left.
+And we then add to that, the final 270th reading up to the 360th reading, which would be on the right side of the bot, also 
+reversing this.\\
+After this we simply use the new array, to create cones for viewing zones of the bot, and then proceeed to store the readings of
+shortest distance in each of these relevant areas, to use for evaluation in our navigation.\\
+\item \textbf{Check for Victims}\\
+In order to check for victims, we read the current red and blue values from the RGB sensor, as the tags we are looking for a red,
+we know to look for a higher value of red and lower value of blue. These new values are compared to an older baseline value, 
+to avoid reading double. The first baseline is made in initialization of the obstacle avoidance loop.
+\begin{figure}[h] 
+    \centering
+    \includegraphics[width=0.5\textwidth]{victimCheck.png}
+    \caption{Victim searching code}
+\end{figure} \\
+We've decided that 20\% was a good amount to allow the readings to fluctuate, and whenever it has changed more than this,
+it's because we've either travelled over a tag we need to read, or we've just come off a tag we've already read. This means
+we can create a new baseline here, to compare future readings with. When this happens, we need to also check if we did come across
+a new tag, or if we went off of one, so this is where we use the new readings from the sensor, to determine if we are over a red 
+tag, and if so increment our counter.\\
+\item \textbf{Check for collision}\\
+Checking for collisions we need to evaluate on the LIDAR readings, we've decided to simplify the check quite a lot, and
+so we simply check if the robot is within 5cm + the LIDAR error. 
+\begin{figure}[h] 
+    \centering
+    \includegraphics[width=0.5\textwidth]{collisionCheck.png}
+    \caption{Collision counter code}
+\end{figure} \\
+To avoid any double counting, we have implemented a cooldown 
+counter, that decreases with every loop-cycle, so we shouldn't read multiple collisions in the same corner, 
+as we would be gone by then. \\
+\item \textbf{Navigation control}\\
+The navigation controls consists of a few steps, firstly we need to check for a flag to see if we have been marked as 
+cornered from a previous loop, and if so, we must continue to turn until our front-cone is clear of immediate obstacles.
+\begin{figure}[h] 
+    \centering
+    \includegraphics[width=0.5\textwidth]{Navigation.png}
+    \caption{Navigation code}
+\end{figure} \\
+If we haven't been marked as stuck, we can move on to see, if there are obstacles in front of us, within our set FRONT\_SAFE\_DIST,
+and if we are clear, we jump to the else case, which simply lets us continue forward at full speed. \\
+Should we instead have obstacles, we need to turn to avoid them, so we immediately decide which way we need to turn, comparing
+the evaluation variable for the left side, to the right side, and storing the decision in another flag called rightTurn.\\
+Moving on, we check our narrow front cone, for any very close obstacles, this is to make sure we have room to turn at all, and if
+we don't, we set the cornered flag and proceed to back up slightly, and the next n-loops would then keep us turning until we are
+clear to move forward. \\
+If all instead goes well, and our narrow front is clear, we either go to the left or right turn case depending on the flag, 
+and here we firstly have a default case that updates the Twist message variables through \\\textit{driveUpdate(angular, linear)},
+to a small turn. \\
+We then move on to check if the obstacle is within our set SAFE\_STOP\_DISTANCE, to determine if we should turn more than the
+default. If we should, we set a new driveUpdate, with a variable amount of turning, depending on the distance to the nearest obstacle.\\
+The final detail of the control loop, is that we have added counters to check for repeated entries into the turning loops. This is
+to combat getting stuck on corners, so if we enter the same loop to many times in a row, we are most likely stuck, and so we 
+reverse instead of continuing to turn into the wall.\\
+Once all of the above has been executed, we have the correct Twist message values as is updated by the \textit{driveUpdate(a, l)}
+function, and so we can publish these to ROS and thus make the robot drive according to our control logic.\\
+\item \textbf{Update variables}\\
+To finalize the loop, we just need to keep track of the average speed of the robot, this is done using the linear speed we've
+saved to the twist.message and a simply counter for how many loops we've been through.
+\begin{figure}[h] 
+    \centering
+    \includegraphics[width=0.5\textwidth]{averageSpeed.png}
+    \caption{Continous update of average speed}
+\end{figure} 
 
-Keep your text and graphic files separate until after the text has been 
-formatted and styled. Do not number text heads---{\LaTeX} will do that 
-for you.
+
+\end{itemize}
+
 
 \subsection{Abbreviations and Acronyms}\label{AA}
 Define abbreviations and acronyms the first time they are used in the text, 
@@ -284,10 +534,12 @@ citation first, followed by the original foreign-language citation \cite{b6}.
 \bibitem{b1} \raggedright Robotis e-Manual - TurtleBot3 Specifications, visited 03-05-2023, \url{https://emanual.robotis.com/docs/en/platform/turtlebot3/features/#specifications}.
 \bibitem{b2} \raggedright Robotis e-Manual - LDS-01 Specifications, visisted 03-05-2023, \url{https://emanual.robotis.com/docs/en/platform/turtlebot3/appendix_lds_01/}
 \bibitem{b3} \raggedright Raspberry Pi 3 Model B Documentation, visisted 03-05-2023, \url{https://www.raspberrypi.com/products/raspberry-pi-3-model-b/}
-\bibitem{b4} \raggedright K. Elissa, ``Title of paper if known,'' unpublished.
-\bibitem{b5} \raggedright R. Nicole, ``Title of paper with only first word capitalized,'' J. Name Stand. Abbrev., in press.
-\bibitem{b6} \raggedright Y. Yorozu, M. Hirano, K. Oka, and Y. Tagawa, ``Electron spectroscopy studies on magneto-optical media and plastic substrate interface,'' IEEE Transl. J. Magn. Japan, vol. 2, pp. 740--741, August 1987 [Digests 9th Annual Conf. Magnetics Japan, p. 301, 1982].
-\bibitem{b7} \raggedright M. Young, The Technical Writer's Handbook. Mill Valley, CA: University Science, 1989.
+\bibitem{b4} \raggedright ISL-29125 RGB Sensor Datasheet, visisted 28-05-2023, \url{https://cdn.sparkfun.com/datasheets/Sensors/LightImaging/isl29125.pdf}
+\bibitem{b5} \raggedright Turtlebot3 Package, template code, visisted 28-05-2023, \url{https://github.com/ROBOTIS-GIT/turtlebot3/blob/master/turtlebot3_example/nodes/turtlebot3_obstacle}
+\bibitem{b6} \raggedright BrightSpace Week 7, Navigation Slides
+\bibitem{b7} \raggedright Brightspace week 9, Speed Optimization Slides
+\bibitem{b8} \raggedright Turtlebot3 master repository, visisted 28-05-2023, \url{https://github.com/ROBOTIS-GIT/turtlebot3/tree/master}
+
 \end{thebibliography}
 \vspace{12pt}
 \color{red}

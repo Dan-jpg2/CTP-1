@@ -82,30 +82,35 @@ class Obstacle():
 
     def obstacle(self):
         twist = Twist() # create a Twist message to send velocity commands
-        victims = 0 # number of victims found
-        collision_count = 0 # number of collisions
-        collision_cd = 0 # collision cooldown
+        
+        victims = 0 # Counter for found victims
+        collision_count = 0 # Counter for collisions
+        collision_cd = 0 # Cooldown counter for collisions
+        
         sensor = RGBsensor() # initialize RGB sensor
-        timeToRun = 60 * 2 # 2 minutes run time
-        endTime = time.time() + timeToRun
         curBlue = (sensor.get_rgb())[2] # Get first baseline reading for detecting victims
-        cornered = False
-        rightTurn = True # Default case, we have to define this before use
+        
+        cornered = False # Flag for getting out of corners (Default = False)
+        rightTurn = True # Flag for which way to turn (Default = True)
+        
         rightLoop = 0
         leftLoop = 0
+        
+        timeToRun = 60 * 2 # 2 minutes run time
+        endTime = time.time() + timeToRun
 
-        def driveUpdate(dir, speed): # Simplify updating speed and turns
-            twist.angular.z = dir
-            twist.linear.x = speed
+        def driveUpdate(angular, linear): # Simplify updating twist message
+            twist.angular.z = angular
+            twist.linear.x = linear
 
         while (not rospy.is_shutdown() and (time.time() < endTime)): # loop for 2 minutes or until user CTRL + C
             scan_read = self.get_scan() # get the filtered lidar data
             
             # Discard readings beyond the scope we want to work with here (take from -90 to +90 deg)
             lidar_distances = scan_read[:90][::-1]
-            lidar_distances.extend(scan_read[270:][::-1]) # Store our data from left to right view         
+            lidar_distances.extend(scan_read[270:][::-1]) # Store our data from left to right view   
 
-            #Partition readings into cones for evaluating navigation from
+            #Partition readings into cones for evaluating navigation
             frontCone = lidar_distances[60:120] # -30 deg to +30 deg
             rightCone = lidar_distances[120:] # 30 deg to 90 deg
             leftCone = lidar_distances[:60] # -90 deg to -30 deg
@@ -138,7 +143,7 @@ class Obstacle():
                 rightLoop = 0
                 if(frontEval > EMERGENCY_STOP_DIST * 1.6):
                     cornered = False
-                    driveUpdate(0.0, LINEAR_VEL) # driveUpdate(angular, linear)
+                    driveUpdate(0.0, LINEAR_VEL)
                 else:
                     if(rightTurn):
                         driveUpdate(-1.0, 0.0)
@@ -186,13 +191,13 @@ class Obstacle():
                 #rospy.loginfo('Continue straight')
             self._cmd_pub.publish(twist) # Publish our decision on what to do
                 
-            #Average linear speed updates here
+            #Average linear linear updates here
             self.accumulated_speed += abs(twist.linear.x)
             self.speed_updates += 1
             self.average_speed = self.accumulated_speed / self.speed_updates
 
             time.sleep(0.2) # Sleep to delay evaluation for new data, get_scan doesn't work too fast
-        rospy.loginfo('Average speed: %f\nVictims Found: %d\nCollisions detected: %d', self.average_speed, victims, collision_count)
+        rospy.loginfo('Average linear: %f\nVictims Found: %d\nCollisions detected: %d', self.average_speed, victims, collision_count)
         # Print variables at the end of run
         
 def main():
