@@ -117,6 +117,10 @@ class Obstacle():
             fullLeft = min(lidar_distances[:90]) # Entire left side eval
             fullRight = min(lidar_distances[90:]) # Entire right side eval
             
+            print('right min:', rightEval)
+            print('left min:', leftEval)
+            print('front min:', frontEval)
+
             newRed, dummy, newBlue = sensor.get_rgb() # Get values for victim detection (red and blue)
             
             if newBlue < curBlue * 0.8 or newBlue > curBlue * 1.2: # Only care about the RGB readings if the data is 20% different from last baseline (prevents double counts)
