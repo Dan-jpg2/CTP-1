@@ -53,7 +53,7 @@ class RGBsensor(): #RGB sensor class
         # 12 bit res means max val of 4095
         green = self.bus.read_word_data(0x44, 0x09)
         red = self.bus.read_word_data(0x44, 0x0B)
-        blue= self.bus.read_word_data(0x44, 0x0D) 
+        blue = self.bus.read_word_data(0x44, 0x0D)
         return red, green, blue
 
 class Obstacle():
@@ -129,7 +129,6 @@ class Obstacle():
                 if newRed > 400 and newBlue < 200: # Check if we are currently over a red tag
                     victims += 1
                     rospy.loginfo('Victim found, total count: %d', victims)
-            rospy.loginfo('Red value %d, Blue value %d', newRed, newBlue) # debug
             
             if min(scan_read) < 0.05 + LIDAR_ERROR: # If something is within 5 cm (+ error) count up collision (unless on cooldown)
                 if collision_cd < 1:
@@ -186,7 +185,6 @@ class Obstacle():
                 leftLoop = 0
                 rightLoop = 0
                 driveUpdate(0.0, LINEAR_VEL)
-                #rospy.loginfo('Continue straight')
             self._cmd_pub.publish(twist) # Publish our decision on what to do
                 
             #Average linear linear updates here
@@ -194,8 +192,7 @@ class Obstacle():
             self.speed_updates += 1
             self.average_speed = self.accumulated_speed / self.speed_updates
 
-            #time.sleep(0.2) # Sleep to delay evaluation for new data, get_scan doesn't work too fast
-        rospy.loginfo('Average linear: %f\nVictims Found: %d\nCollisions detected: %d', self.average_speed, victims, collision_count)
+        rospy.loginfo('Average linear speed: %f\nVictims Found: %d\nCollisions detected: %d', self.average_speed, victims, collision_count)
         # Print variables at the end of run
         
 def main():
