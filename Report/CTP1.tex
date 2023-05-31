@@ -1,17 +1,39 @@
 \documentclass[conference]{IEEEtran}
-\IEEEoverridecommandlockouts
+\usepackage[utf8]{inputenc}
+%\IEEEoverridecommandlockouts
 % The preceding line is only needed to identify funding in the first footnote. If that is unneeded, please comment it out.
 \usepackage{cite}
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{algorithmic}
 \usepackage{graphicx}
 \graphicspath{ {img/} }
+\usepackage{blindtext}
 \usepackage{hyperref}
 \hypersetup{
     hidelinks
 }
 \usepackage{textcomp}
 \usepackage{xcolor}
+\usepackage{listings}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+\lstset{ %frame=tb,
+  language=Python,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  numbers=left,
+  basicstyle={\small\ttfamily},
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3  
+}
 \usepackage{wrapfig}
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
@@ -62,10 +84,10 @@ The TurtleBot3 Burger is equipped with a Raspberry Pi 3 Model B \cite{b1} in com
 provide us with options for programming and controlling it. \\
 
 \subsection{LDS-01 LIDAR}
-Additionally the Burger has an LDS-01\cite{b2} Lidar scanner mounted on top, which we use for the navigation of the Burger.\\
+Additionally the Burger has an LDS-01\cite{b2} LIDAR scanner mounted on top, which we use for the navigation of the Burger.\\
 
 \subsection{Raspberry Pi 3 Model B}
-The Raspberry Pi is a small-scale computer ideal for hobbyist purposes, with GPIO pins, that we could use to add extra sensors to
+The Raspberry Pi is a small-scale computer ideal for hobbyist purposes, with IO pins, that we could use to add extra sensors to
 our robot \cite{b3}.\\
 
 \subsection{RGB Sensor}
@@ -80,7 +102,7 @@ In this section we are going to talk about our own thoughts on design and implem
 Concrete implementation and thoughts will come in the later sections. \\
 \\
 In the early stages of our process, we started out with the RGB sensor as it was a component that just had to be mounted 
-on the robot and connected to the Pi. If we could make that work, it was a simple matter of just implementing it later.\\
+on the robot and connected to the Pi. If we could make that work, it was a simple matter of just connecting it later.\\
 Our intention was to make the sensor read some coloured tags from the floor, which would simulate victims that our robot 
 had to recognize as it moves around.\\
 Firstly we installed the necessary libraries on the Pi, \textit{smbus} to communicate with the sensor, and \textit{time} for 
@@ -251,7 +273,20 @@ was cleared of any immediate obstacles. This of course sacrifices a good bit
 of the average linear speed, however it felt like it was the better option compared to getting stuck. 
 Additionally we did add another measure if we ended up being truly stuck, by counting the number of repeated turn decisions, 
 if we repeated the same loop too often, we decided it likely meant we were stuck on a corner, as had been observed during testing, 
-and then we could reverse out of this situation, to make a new decision instead.
+and then we could reverse out of this situation, to make a new decision instead.\\\\
+In this iteration of the code however, we still observed undesired zigzag behavior, particularly when the bot was in-between two
+relatively close walls, where it had come away from a turn just recently. This turned out to be because we evaluated which way to
+turn, based on which side of the bot from -90° to 0° on the left or from 0° to 90° on the right, had the closest obstacle.
+The bug here was that when coming away from a turn, where we are close to a wall, that same wall will be closer than anything on the
+other side, and so we would keep avoiding this wall that we were already turning away from, potentially nose-diving into the opposing wall.
+Our fix for this, was to only judge the turn direction on some more forward facing cones, meaning our evaluation for the left-side
+became -75° to 0° and on the right from 0° to 75° instead. \\
+Additionally we found the bot was still struggling to find it's path through narrower places, and so we decided to narrow the
+front cone, down to ±25° instead of ±30°. This did largely fix that problem, however it was now even more difficult to avoid small
+corners that the wheel could get stuck on, especially after recent turns, as the narrow cone when up close, is quite blind. \\
+All in however, we decided this implementation was acceptable, but it was best suited for smooth corners that can be seen from 
+further away, if it hits a narrow corner, it will be able to navigate its way out, and check the corners, but it may take a little
+longer.
 \\\\
 \subsubsection{Program design}\label{program}
 Our program has its roots in the Turtlebot3\_example package \cite{b5}, using a similar structure for the \textit{Obstacle} class,
@@ -262,22 +297,46 @@ The entire code can be found in our GitHub repository \cite{b9}, in "Code sample
 \begin{itemize}
 \item \textbf{Get LIDAR data}\\
 Starting off each loop, we must get a new reading from the LIDAR to be able to navigate with current positional data.\\
-For this we have the \textit{get\_scan()} function, which is quite similar in structure to the one from the template.
-\begin{figure}[h] %this figure will be at the left
-    \centering
-    \includegraphics[width=0.5\textwidth]{get_scan.png}
-    \caption{\textit{get\_scan()} function}
-\end{figure} \\
+For this we have the \textit{get\_scan()} function, which is quite similar in structure to the one from the template.\\
+Code snippet of the function is on the next page.\\
+\begin{lstlisting}
+def get_scan(self):
+    scan = rospy.wait_for_message('scan', LaserScan) # Listener for next 'scan' message from the lidar
+    scan_filter = [] # create empty array to store filtered lidar data  
+
+    for i in range(len(scan.ranges)): # iterate through the lidar samples
+        scan_filter.append(scan.ranges[i]) # append the filtered lidar data to the list
+
+    for i in range(len(scan_filter)): # iterate through the filtered lidar data
+        curRead = scan_filter[i]
+        if curRead == float('Inf') or curRead < 0.01 or math.isnan(curRead): # check if the lidar data is gibberish
+            scan_filter[i] = 10.0 # set the lidar data to a large number (invalid)
+    return scan_filter
+\end{lstlisting}
 We listen for a new message from the LIDAR and then proceed to filter this data sorting out 
 values like infinity, 0 and NaN, setting these entries to 10 instead, which we know is not going to affect our navigation.\\
 \item \textbf{Sort and Evaluate Data}\\
 Having received the filtered data from the \textit{get\_scan()} function, we need to organize it and evaluate it,
-to be able to use it for navigation.
-\begin{figure}[h] %this figure will be at the left
-    \centering
-    \includegraphics[width=0.5\textwidth]{evaluateAndSort.png}
-    \caption{Organize data}
-\end{figure}\\
+to be able to use it for navigation. (Code snippet from obstacle function)
+\begin{lstlisting}
+    scan_read = self.get_scan() # get the filtered lidar data
+            
+    # Discard readings beyond the scope we want to work with here (take from -90 to +90 deg)
+    lidar_distances = scan_read[:90][::-1]
+    lidar_distances.extend(scan_read[270:][::-1]) # Store our data from left to right view   
+
+    #Partition readings into cones for evaluating navigation
+    frontCone = lidar_distances[65:115] # -25 deg to +25 deg
+    rightCone = lidar_distances[115:] # 25 deg to 90 deg
+    leftCone = lidar_distances[:65] # -90 deg to -25 deg
+
+    rightEval = min(rightCone)
+    leftEval = min(leftCone)
+    frontEval = min(frontCone)
+    narrowFront = min(frontCone[15:45]) # Front cone of +-15 deg
+    leftTurnE = min(lidar_distances[25:90]) # Eval for left side turn
+    rightTurnE = min(lidar_distances[90:155]) # right turn eval
+\end{lstlisting}
 We do this by creating a new array, intended to store our readings in order from left to right, starting at -90 degrees up 
 to 90 degrees. Since our LIDAR returns an array of 360 readings, one from each degree of angle, we take the first 90 
 readings which are on the left side of the bot, and reverse this, because it by default is stored right to left.
@@ -289,12 +348,16 @@ shortest distance in each of these relevant areas, to use for evaluation in our 
 In order to check for victims, we read the current red and blue values from the RGB sensor, as the tags we are looking for a red,
 we know to look for a higher value of red and lower value of blue. These new values are compared to an older baseline value, 
 to avoid reading double. The first baseline is made in initialization of the obstacle avoidance loop.
-\begin{figure}[h] 
-    \centering
-    \includegraphics[width=0.5\textwidth]{victimCheck.png}
-    \caption{Victim searching code}
-\end{figure} \\
-We've decided that 20\% was a good amount to allow the readings to fluctuate, and whenever it has changed more than this,
+\begin{lstlisting}
+    newRed, dummy, newBlue = sensor.get_rgb() # Get values for victim detection (red and blue)
+            
+    if newBlue < curBlue * 0.75 or newBlue > curBlue * 1.25: # Only care about the RGB readings if the data is 25% different from last baseline (prevents double counts)
+        curBlue = newBlue # new baseline
+        if newRed > 400 and newBlue < 200: # Check if we are currently over a red tag
+            victims += 1
+            rospy.loginfo('Victim found, total count: %d', victims)
+\end{lstlisting}
+We've decided that 25\% was a good amount to allow the readings to fluctuate, and whenever it has changed more than this,
 it's because we've either travelled over a tag we need to read, or we've just come off a tag we've already read. This means
 we can create a new baseline here, to compare future readings with. When this happens, we need to also check if we did come across
 a new tag, or if we went off of one, so this is where we use the new readings from the sensor, to determine if we are over a red 
@@ -302,12 +365,14 @@ tag, and if so increment our counter.\\
 \item \textbf{Check for collision}\\
 Checking for collisions we need to evaluate on the LIDAR readings, we've decided to simplify the check quite a lot, and
 so we simply check if the robot is within 5cm + the LIDAR error. 
-\begin{figure}[h] 
-    \centering
-    \includegraphics[width=0.5\textwidth]{collisionCheck.png}
-    \caption{Collision counter code}
-\end{figure}
-\vspace*{-0.2cm}\\
+\begin{lstlisting}
+if min(scan_read) < 0.05 + LIDAR_ERROR: # If something is within 5 cm (+ error) count up collision (unless on cooldown)
+    if collision_cd < 1:
+       collision_count += 1
+       collision_cd = 10
+       rospy.loginfo('Collision detected, total collisions: %d', collision_count)   
+collision_cd -= 1 # Cooldown for loop cycles on colissions
+\end{lstlisting}
 To avoid any double counting, we have implemented a cooldown 
 counter, that decreases with every loop-cycle, so we shouldn't read multiple collisions in the same corner, 
 as we would be gone by then. \\
@@ -331,21 +396,66 @@ to combat getting stuck on corners, so if we enter the same loop to many times i
 reverse instead of continuing to turn into the wall.\\
 Once all of the above has been executed, we have the correct Twist message values as is updated by the \textit{driveUpdate(a, l)}
 function, and so we can publish these to ROS and have the robot follow our control logic.
-\\\\
-\begin{figure}[h] 
-    \centering
-    \includegraphics[width=0.5\textwidth]{Navigation.png}
-    \caption{Navigation code}
-\end{figure} 
-\pagebreak
+\begin{lstlisting}
+if(cornered): # If we've been cornered, this lets us turn until we find a way out
+    leftLoop = 0
+    rightLoop = 0
+    if(frontEval > EMERGENCY_STOP_DIST * 1.6):
+        cornered = False
+        driveUpdate(0.0, LINEAR_VEL)
+    else:
+        if(rightTurn):
+            driveUpdate(-1.0, 0.0)
+        else:
+            driveUpdate(1.0, 0.0)
+
+elif frontEval < FRONT_SAFE_DIST: # If obstacle in front, turn
+    # Turn direction decision
+    if(leftTurnE <= rightTurnE):
+        rightTurn = True
+    else:
+        rightTurn = False
+
+    if(narrowFront < EMERGENCY_STOP_DIST): # Determine if cornered
+        cornered = True
+        driveUpdate(0.0, -0.15)
+
+    elif(rightTurn): # Need to turn, not cornered
+        #Turn right
+        driveUpdate(-0.7 - 0.16/leftEval, LINEAR_VEL) # Default turn a little if something is in the way
+        rightLoop += 1
+        leftLoop = 0
+        if(rightLoop > 10): # if we seem stuck on a corner we can't see, reverse
+            driveUpdate(1.4, -0.4 * LINEAR_VEL)
+        
+        elif(leftEval < SAFE_STOP_DISTANCE):
+            driveUpdate(-1.0 - 0.22/leftEval, LINEAR_VEL) # Turn depending on how close an obstacle is
+    else:
+        #Turn left 
+        driveUpdate(0.7 + 0.16/rightEval, LINEAR_VEL) # prev 0.5 + 0.15
+        leftLoop += 1
+        rightLoop = 0
+        if(leftLoop > 10):
+            driveUpdate(-1.4, -0.4 * LINEAR_VEL)
+
+        elif(rightEval < SAFE_STOP_DISTANCE):
+            driveUpdate(1.0 + 0.22/rightEval, LINEAR_VEL)
+
+else: # Continue straight, if no obstacles ahead
+    leftLoop = 0
+    rightLoop = 0
+    driveUpdate(0.0, LINEAR_VEL)
+self._cmd_pub.publish(twist) # Publish our decision on what to do
+\end{lstlisting}
 \item \textbf{Update variables}\\
 To finalize the loop, we just need to keep track of the average speed of the robot, this is done using the linear speed we've
 saved to the twist.message and a simply counter for how many loops we've been through.
-\begin{figure}[h] 
-    \centering
-    \includegraphics[width=0.5\textwidth]{averageSpeed.png}
-    \caption{Continous update of average speed}
-\end{figure} 
+\begin{lstlisting}
+    #Average linear linear updates here
+    self.accumulated_speed += abs(twist.linear.x)
+    self.speed_updates += 1
+    self.average_speed = self.accumulated_speed / self.speed_updates
+\end{lstlisting}
 \end{itemize}
 
 
@@ -367,7 +477,7 @@ We managed to successfully implement our initial and later improved theories.
 With that in mind it is likely possible to achieve better navigation than what we've accomplished. 
 One way to make some improvements would be to make the robot more “aware” of how big it is. We could make 
 the robot evaluate in a radius around itself 360 degrees, instead of our front-focused approach. 
-The radius would have to be a bit bigger than the actual radius to mitigate potential problems when turning around. 
+The radius would have to be a bit bigger than the actual radius of the robot to mitigate potential problems when turning around. 
 This would then be its own function that would run before anything else in the control loop. 
 If a reading from this is returned and is within a specified safety range, it would then turn and make the 
 front as far away as possible from the found obstacle. \\\\
@@ -381,12 +491,12 @@ This might however be a bit out of the scope of the project presented to us, but
 \section{Conclusion}\label{conclusion}
 Even though we've been working with very simple programming and robots, the principles of working on a project 
 that is a bit bigger in size, requires a lot of time investment. 
-We've learned the foundation of understanding a bit more complex robot behavior, and the importance of 
+We've learned the foundation of understanding more complex robot behavior, and the importance of 
 being structured and working systematically instead of being all over the place and hoping for the best. \\
 ROS provides a structure and playground for working on these complex projects and has improved our capabilities 
 to work on further projects which might be even more complex than this. \\\\
 We've presented a way to implement basic autonomous navigation which resulted in reasonably good obstacle avoidance 
-and average speed. It works best in more sporadic and spread-out environment in terms of obstacles, 
+and average speed. It works best in more smooth and spread-out environment in terms of obstacles, 
 whereas in tight spaces it could face problems where it couldn't determine whether there was enough space. \\\\
 The LIDAR sensor presented us with some issues and would get bad readings that had to be mitigated. 
 We've managed to work around this as best as possible, and the navigation functions consistently despite this. \\
@@ -429,7 +539,7 @@ While Daniel was focused on the following:
 \bibitem{b4} \raggedright ISL-29125 RGB Sensor Datasheet, visisted 28-05-2023, \url{https://cdn.sparkfun.com/datasheets/Sensors/LightImaging/isl29125.pdf}
 \bibitem{b5} \raggedright Turtlebot3 Package, template code, visisted 28-05-2023, \url{https://github.com/ROBOTIS-GIT/turtlebot3/blob/master/turtlebot3_example/nodes/turtlebot3_obstacle}
 \bibitem{b6} \raggedright BrightSpace Week 7, Navigation Slides
-\bibitem{b7} \raggedright Brightspace week 9, Speed Optimization Slides
+\bibitem{b7} \raggedright Brightspace Week 9, Speed Optimization Slides
 \bibitem{b8} \raggedright Turtlebot3 master repository, visisted 28-05-2023, \url{https://github.com/ROBOTIS-GIT/turtlebot3/tree/master}
 \bibitem{b9} \raggedright Our GitHub repository, visisted 29-05-2023, \url{https://github.com/Dan-jpg2/CTP-1}
 

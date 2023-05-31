@@ -112,8 +112,8 @@ class Obstacle():
 
             #Partition readings into cones for evaluating navigation
             frontCone = lidar_distances[65:115] # -25 deg to +25 deg
-            rightCone = lidar_distances[115:] # 30 deg to 90 deg
-            leftCone = lidar_distances[:65] # -90 deg to -30 deg
+            rightCone = lidar_distances[115:] # 25 deg to 90 deg
+            leftCone = lidar_distances[:65] # -90 deg to -25 deg
 
             rightEval = min(rightCone)
             leftEval = min(leftCone)
@@ -124,7 +124,7 @@ class Obstacle():
 
             newRed, dummy, newBlue = sensor.get_rgb() # Get values for victim detection (red and blue)
             
-            if newBlue < curBlue * 0.75 or newBlue > curBlue * 1.25: # Only care about the RGB readings if the data is 20% different from last baseline (prevents double counts)
+            if newBlue < curBlue * 0.75 or newBlue > curBlue * 1.25: # Only care about the RGB readings if the data is 25% different from last baseline (prevents double counts)
                 curBlue = newBlue # new baseline
                 if newRed > 400 and newBlue < 200: # Check if we are currently over a red tag
                     victims += 1
